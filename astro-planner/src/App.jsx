@@ -125,32 +125,82 @@ function App() {
     if (!zipCode) return
     setLoading(true)
     try {
+      console.log('Fetching location for:', zipCode)
       const locationResponse = await fetch('/api/location', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ input: zipCode }) })
-      if (!locationResponse.ok) { alert('Location not found.'); setLoading(false); return }
+      console.log('Location response status:', locationResponse.status)
+      if (!locationResponse.ok) {
+        const errorText = await locationResponse.text()
+        console.error('Location error:', errorText)
+        alert('Location not found.')
+        setLoading(false)
+        return
+      }
       const locationData = await locationResponse.json()
+      console.log('Location data:', locationData)
       const { latitude, longitude, locationName } = locationData
       setCoords({ latitude, longitude, locationName })
+
+      console.log('Fetching astropheric data...')
       const astrophericResponse = await fetch(`/api/astropheric?lat=${latitude}&lon=${longitude}`)
-      if (astrophericResponse.ok) setAstropheric((await astrophericResponse.json()).data)
-      const weatherData = await (await fetch(`/api/weather?lat=${latitude}&lon=${longitude}`)).json()
+      console.log('Astropheric response status:', astrophericResponse.status)
+      if (astrophericResponse.ok) {
+        const astroData = await astrophericResponse.json()
+        console.log('Astropheric data received')
+        setAstropheric(astroData.data)
+      } else {
+        console.error('Astropheric failed:', await astrophericResponse.text())
+      }
+
+      console.log('Fetching weather data...')
+      const weatherResponse = await fetch(`/api/weather?lat=${latitude}&lon=${longitude}`)
+      console.log('Weather response status:', weatherResponse.status)
+      const weatherData = await weatherResponse.json()
+      console.log('Weather data:', weatherData)
       setWeather({ temperature: weatherData.current.temperature_2m, humidity: weatherData.current.relative_humidity_2m, cloudCover: weatherData.current.cloud_cover, windSpeed: weatherData.current.wind_speed_10m, windDirection: weatherData.current.wind_direction_10m })
-      const moonData = await (await fetch(`/api/moon?lat=${latitude}&lon=${longitude}`)).json()
+
+      console.log('Fetching moon data...')
+      const moonResponse = await fetch(`/api/moon?lat=${latitude}&lon=${longitude}`)
+      console.log('Moon response status:', moonResponse.status)
+      const moonData = await moonResponse.json()
+      console.log('Moon data:', moonData)
       setMoon(moonData)
-    } catch (error) { console.error('Error:', error); alert('Error fetching data.') }
+
+      console.log('All data fetched successfully')
+    } catch (error) {
+      console.error('Fetch error:', error)
+      alert('Error fetching data: ' + error.message)
+    }
     setLoading(false)
   }
 
   const loadSavedLocation = async (location) => {
     setLoading(true)
     try {
+      console.log('Loading saved location:', location.name)
       setCoords({ latitude: location.latitude, longitude: location.longitude, locationName: location.name })
+
       const astrophericResponse = await fetch(`/api/astropheric?lat=${location.latitude}&lon=${location.longitude}`)
-      if (astrophericResponse.ok) setAstropheric((await astrophericResponse.json()).data)
-      const weatherData = await (await fetch(`/api/weather?lat=${location.latitude}&lon=${location.longitude}`)).json()
+      console.log('Astropheric response status:', astrophericResponse.status)
+      if (astrophericResponse.ok) {
+        const astroData = await astrophericResponse.json()
+        setAstropheric(astroData.data)
+      } else {
+        console.error('Astropheric failed:', await astrophericResponse.text())
+      }
+
+      const weatherResponse = await fetch(`/api/weather?lat=${location.latitude}&lon=${location.longitude}`)
+      const weatherData = await weatherResponse.json()
       setWeather({ temperature: weatherData.current.temperature_2m, humidity: weatherData.current.relative_humidity_2m, cloudCover: weatherData.current.cloud_cover, windSpeed: weatherData.current.wind_speed_10m, windDirection: weatherData.current.wind_direction_10m })
-      const moonData = await (await fetch(`/api/moon?lat=${location.latitude}&lon=${location.longitude}`)).json()
+
+      const moonResponse = await fetch(`/api/moon?lat=${location.latitude}&lon=${location.longitude}`)
+      const moonData = await moonResponse.json()
       setMoon(moonData)
-    } catch (error) { console.error('Error:', error); alert('Error fetching data.') }
+
+      console.log('Saved location loaded successfully')
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error fetching data: ' + error.message)
+    }
     setLoading(false)
   }
 
