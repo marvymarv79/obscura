@@ -1,4 +1,10 @@
 import { useState, useEffect } from 'react'
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton
+} from '@clerk/clerk-react'
 import './App.css'
 import {
   DSO_DATABASE,
@@ -288,13 +294,31 @@ function App() {
 
   return (
     <div className="app">
-      <div className="content">
-        <div className="header-section">
-          <h1>🔭 Obscura</h1>
-          <p>Plan your astrophotography session</p>
+      <SignedOut>
+        <div className="auth-container">
+          <div className="auth-content">
+            <h1>🔭 Obscura</h1>
+            <p>Plan your astrophotography session</p>
+            <div className="auth-buttons">
+              <SignInButton mode="modal">
+                <button className="primary-button">Sign In</button>
+              </SignInButton>
+            </div>
+          </div>
         </div>
-        
-        {savedLocations.length > 0 && (
+      </SignedOut>
+
+      <SignedIn>
+        <div className="content">
+          <div className="header-section">
+            <div className="header-top">
+              <h1>🔭 Obscura</h1>
+              <UserButton />
+            </div>
+            <p>Plan your astrophotography session</p>
+          </div>
+
+          {savedLocations.length > 0 && (
           <div className="saved-locations">
             <h3>📍 Saved Locations</h3>
             <div className="location-buttons">
@@ -546,7 +570,8 @@ function App() {
             <GearEditor customGear={customGear} setCustomGear={setCustomGear} />
           </div>
         )}
-      </div>
+        </div>
+      </SignedIn>
     </div>
   )
 }
