@@ -7,12 +7,12 @@ import {
   getRecommendedTargets,
   getCardinalDirection,
   getRiseTransitSet
-} from './astroCalc'
+} from './astrocalc'
 import {
   IMAGING_SETUPS,
   calculateGearCompatibility
-} from './gearConfig'
-import ImagingLog from './ImagingLog'
+} from './gearconfig'
+import ImagingLog from './imaginglog'
 import GearEditor from './GearEditor'
 
 const GEAR_MATCH_THRESHOLD = 60
