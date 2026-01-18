@@ -17,17 +17,25 @@ export default async function handler(req, res) {
     const latitude = parseFloat(lat)
     const longitude = parseFloat(lon)
 
-    if (!process.env.ASTROPHERIC_API_KEY) {
+    const apiKey = process.env.ASTROPHERIC_API_KEY
+
+    if (!apiKey) {
       return res.status(500).json({ error: 'Astropheric API key not configured' })
     }
+
+    // Debug: log key length and first/last chars (not the full key for security)
+    console.log(`API Key present: yes, length: ${apiKey.length}, starts with: ${apiKey.substring(0, 4)}..., ends with: ...${apiKey.substring(apiKey.length - 4)}`)
+    console.log(`Coordinates: ${latitude}, ${longitude}`)
 
     const apiEndpoint = 'https://astrosphericpublicaccess.azurewebsites.net/api/GetForecastData_V1'
 
     const requestData = {
       Latitude: latitude,
       Longitude: longitude,
-      APIKey: process.env.ASTROPHERIC_API_KEY
+      APIKey: apiKey
     }
+
+    console.log('Sending request to Astrospheric...')
 
     const response = await fetch(apiEndpoint, {
       method: 'POST',
@@ -37,11 +45,16 @@ export default async function handler(req, res) {
       body: JSON.stringify(requestData)
     })
 
+    console.log(`Astrospheric response status: ${response.status}`)
+
     if (!response.ok) {
-      throw new Error(`Astropheric API returned ${response.status}`)
+      const errorText = await response.text()
+      console.log(`Astrospheric error response: ${errorText}`)
+      throw new Error(`Astropheric API returned ${response.status}: ${errorText}`)
     }
 
     const data = await response.json()
+    console.log('Astrospheric data received successfully')
 
     res.json({
       source: 'astropheric',
