@@ -8,7 +8,13 @@ export async function authenticateRequest(req) {
   const authHeader = req.headers.authorization
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null
+    console.error('Auth failed: No Authorization header or invalid format')
+    return { userId: null, error: 'missing_token' }
+  }
+
+  if (!process.env.CLERK_SECRET_KEY) {
+    console.error('Auth failed: CLERK_SECRET_KEY environment variable is not set')
+    return { userId: null, error: 'missing_secret_key' }
   }
 
   const token = authHeader.replace('Bearer ', '')
@@ -17,10 +23,10 @@ export async function authenticateRequest(req) {
     const verified = await verifyToken(token, {
       secretKey: process.env.CLERK_SECRET_KEY
     })
-    return verified.sub // This is the Clerk userId
+    return { userId: verified.sub, error: null }
   } catch (error) {
     console.error('Token verification failed:', error.message)
-    return null
+    return { userId: null, error: 'invalid_token' }
   }
 }
 
@@ -54,10 +60,18 @@ export async function withAuth(req, res, handler) {
 
   if (handleOptions(req, res)) return
 
-  const userId = await authenticateRequest(req)
+  const { userId, error } = await authenticateRequest(req)
 
   if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized' })
+    const errorMessages = {
+      missing_token: 'Authorization token is missing',
+      missing_secret_key: 'Server configuration error: CLERK_SECRET_KEY not set',
+      invalid_token: 'Invalid or expired token'
+    }
+    return res.status(401).json({
+      error: 'Unauthorized',
+      details: errorMessages[error] || 'Authentication failed'
+    })
   }
 
   return handler(req, res, userId)
