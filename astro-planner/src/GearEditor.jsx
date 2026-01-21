@@ -1,10 +1,81 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { USER_GEAR } from './gearconfig'
+import { useApi } from './hooks/useApi'
 
 function GearEditor({ customGear, setCustomGear }) {
+  const { get, post, put, del, isSignedIn } = useApi()
   const [activeSection, setActiveSection] = useState('cameras')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  // Load gear from API on mount
+  useEffect(() => {
+    if (!isSignedIn) return
+
+    async function loadGear() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [camerasData, opticsData, setupsData] = await Promise.all([
+          get('/api/cameras'),
+          get('/api/optics'),
+          get('/api/setups')
+        ])
+
+        // Transform API data to frontend format
+        const cameras = camerasData.map(c => ({
+          id: c.id,
+          name: c.name,
+          sensorWidth: parseFloat(c.sensorWidth) || 0,
+          sensorHeight: parseFloat(c.sensorHeight) || 0,
+          pixelSize: parseFloat(c.pixelSize) || 0,
+          resolution: {
+            width: c.resolutionWidth || 0,
+            height: c.resolutionHeight || 0
+          },
+          type: c.type || 'cooled',
+          color: c.isColor !== false,
+          isCustom: true
+        }))
+
+        const optics = opticsData.map(o => ({
+          id: o.id,
+          name: o.name,
+          focalLength: parseFloat(o.focalLength) || 0,
+          aperture: parseFloat(o.aperture) || 0,
+          fRatio: parseFloat(o.fRatio) || 0,
+          type: o.type || 'refractor',
+          isCustom: true
+        }))
+
+        const setups = setupsData.map(s => ({
+          id: s.id,
+          name: s.name,
+          camera: s.cameraId || s.defaultCameraId,
+          optic: s.opticId || s.defaultOpticId,
+          focalLength: parseFloat(s.focalLength) || 0,
+          pixelScale: parseFloat(s.pixelScale) || 0,
+          fov: {
+            width: parseFloat(s.fovWidth) || 0,
+            height: parseFloat(s.fovHeight) || 0
+          },
+          category: s.category || 'main-rig',
+          isCustom: true
+        }))
+
+        setCustomGear({ cameras, optics, setups })
+      } catch (err) {
+        console.error('Failed to load gear:', err)
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadGear()
+  }, [isSignedIn])
 
   // Camera form state
   const [cameraForm, setCameraForm] = useState({
@@ -117,40 +188,73 @@ function GearEditor({ customGear, setCustomGear }) {
   }
 
   // Camera handlers
-  const handleCameraSubmit = (e) => {
+  const handleCameraSubmit = async (e) => {
     e.preventDefault()
     if (!cameraForm.name.trim()) {
       alert('Please enter a camera name')
       return
     }
 
-    const camera = {
-      id: editingId || `custom-camera-${Date.now()}`,
+    const cameraData = {
       name: cameraForm.name.trim(),
-      sensorWidth: parseFloat(cameraForm.sensorWidth) || 0,
-      sensorHeight: parseFloat(cameraForm.sensorHeight) || 0,
-      pixelSize: parseFloat(cameraForm.pixelSize) || 0,
-      resolution: {
-        width: parseInt(cameraForm.resolutionWidth) || 0,
-        height: parseInt(cameraForm.resolutionHeight) || 0
-      },
+      sensorWidth: parseFloat(cameraForm.sensorWidth) || null,
+      sensorHeight: parseFloat(cameraForm.sensorHeight) || null,
+      pixelSize: parseFloat(cameraForm.pixelSize) || null,
+      resolutionWidth: parseInt(cameraForm.resolutionWidth) || null,
+      resolutionHeight: parseInt(cameraForm.resolutionHeight) || null,
       type: cameraForm.type,
-      color: cameraForm.color,
-      isCustom: true
+      isColor: cameraForm.color
     }
 
-    if (editingId) {
-      setCustomGear(prev => ({
-        ...prev,
-        cameras: prev.cameras.map(c => c.id === editingId ? camera : c)
-      }))
-    } else {
-      setCustomGear(prev => ({
-        ...prev,
-        cameras: [...(prev.cameras || []), camera]
-      }))
+    try {
+      if (editingId) {
+        // Update existing camera
+        const updated = await put(`/api/cameras/${editingId}`, cameraData)
+        const camera = {
+          id: updated.id,
+          name: updated.name,
+          sensorWidth: parseFloat(updated.sensorWidth) || 0,
+          sensorHeight: parseFloat(updated.sensorHeight) || 0,
+          pixelSize: parseFloat(updated.pixelSize) || 0,
+          resolution: {
+            width: updated.resolutionWidth || 0,
+            height: updated.resolutionHeight || 0
+          },
+          type: updated.type,
+          color: updated.isColor !== false,
+          isCustom: true
+        }
+        setCustomGear(prev => ({
+          ...prev,
+          cameras: prev.cameras.map(c => c.id === editingId ? camera : c)
+        }))
+      } else {
+        // Create new camera
+        const created = await post('/api/cameras', cameraData)
+        const camera = {
+          id: created.id,
+          name: created.name,
+          sensorWidth: parseFloat(created.sensorWidth) || 0,
+          sensorHeight: parseFloat(created.sensorHeight) || 0,
+          pixelSize: parseFloat(created.pixelSize) || 0,
+          resolution: {
+            width: created.resolutionWidth || 0,
+            height: created.resolutionHeight || 0
+          },
+          type: created.type,
+          color: created.isColor !== false,
+          isCustom: true
+        }
+        setCustomGear(prev => ({
+          ...prev,
+          cameras: [...(prev.cameras || []), camera]
+        }))
+      }
+      resetForms()
+    } catch (err) {
+      console.error('Failed to save camera:', err)
+      alert('Failed to save camera: ' + err.message)
     }
-    resetForms()
   }
 
   const handleEditCamera = (camera) => {
@@ -168,16 +272,22 @@ function GearEditor({ customGear, setCustomGear }) {
     setShowForm(true)
   }
 
-  const handleDeleteCamera = (id) => {
+  const handleDeleteCamera = async (id) => {
     if (!confirm('Delete this camera?')) return
-    setCustomGear(prev => ({
-      ...prev,
-      cameras: prev.cameras.filter(c => c.id !== id)
-    }))
+    try {
+      await del(`/api/cameras/${id}`)
+      setCustomGear(prev => ({
+        ...prev,
+        cameras: prev.cameras.filter(c => c.id !== id)
+      }))
+    } catch (err) {
+      console.error('Failed to delete camera:', err)
+      alert('Failed to delete camera: ' + err.message)
+    }
   }
 
   // Optics handlers
-  const handleOpticSubmit = (e) => {
+  const handleOpticSubmit = async (e) => {
     e.preventDefault()
     if (!opticForm.name.trim()) {
       alert('Please enter an optic name')
@@ -186,29 +296,55 @@ function GearEditor({ customGear, setCustomGear }) {
 
     const focalLength = parseFloat(opticForm.focalLength) || 0
     const aperture = parseFloat(opticForm.aperture) || 0
+    const fRatio = aperture > 0 ? parseFloat((focalLength / aperture).toFixed(1)) : 0
 
-    const optic = {
-      id: editingId || `custom-optic-${Date.now()}`,
+    const opticData = {
       name: opticForm.name.trim(),
       focalLength,
-      aperture,
-      fRatio: aperture > 0 ? parseFloat((focalLength / aperture).toFixed(1)) : 0,
-      type: opticForm.type,
-      isCustom: true
+      aperture: aperture || null,
+      fRatio: fRatio || null,
+      type: opticForm.type
     }
 
-    if (editingId) {
-      setCustomGear(prev => ({
-        ...prev,
-        optics: prev.optics.map(o => o.id === editingId ? optic : o)
-      }))
-    } else {
-      setCustomGear(prev => ({
-        ...prev,
-        optics: [...(prev.optics || []), optic]
-      }))
+    try {
+      if (editingId) {
+        // Update existing optic
+        const updated = await put(`/api/optics/${editingId}`, opticData)
+        const optic = {
+          id: updated.id,
+          name: updated.name,
+          focalLength: parseFloat(updated.focalLength) || 0,
+          aperture: parseFloat(updated.aperture) || 0,
+          fRatio: parseFloat(updated.fRatio) || 0,
+          type: updated.type,
+          isCustom: true
+        }
+        setCustomGear(prev => ({
+          ...prev,
+          optics: prev.optics.map(o => o.id === editingId ? optic : o)
+        }))
+      } else {
+        // Create new optic
+        const created = await post('/api/optics', opticData)
+        const optic = {
+          id: created.id,
+          name: created.name,
+          focalLength: parseFloat(created.focalLength) || 0,
+          aperture: parseFloat(created.aperture) || 0,
+          fRatio: parseFloat(created.fRatio) || 0,
+          type: created.type,
+          isCustom: true
+        }
+        setCustomGear(prev => ({
+          ...prev,
+          optics: [...(prev.optics || []), optic]
+        }))
+      }
+      resetForms()
+    } catch (err) {
+      console.error('Failed to save optic:', err)
+      alert('Failed to save optic: ' + err.message)
     }
-    resetForms()
   }
 
   const handleEditOptic = (optic) => {
@@ -222,16 +358,22 @@ function GearEditor({ customGear, setCustomGear }) {
     setShowForm(true)
   }
 
-  const handleDeleteOptic = (id) => {
+  const handleDeleteOptic = async (id) => {
     if (!confirm('Delete this optic?')) return
-    setCustomGear(prev => ({
-      ...prev,
-      optics: prev.optics.filter(o => o.id !== id)
-    }))
+    try {
+      await del(`/api/optics/${id}`)
+      setCustomGear(prev => ({
+        ...prev,
+        optics: prev.optics.filter(o => o.id !== id)
+      }))
+    } catch (err) {
+      console.error('Failed to delete optic:', err)
+      alert('Failed to delete optic: ' + err.message)
+    }
   }
 
   // Setup handlers
-  const handleSetupSubmit = (e) => {
+  const handleSetupSubmit = async (e) => {
     e.preventDefault()
     if (!setupForm.name.trim() || !setupForm.cameraId || !setupForm.opticId) {
       alert('Please fill in all required fields')
@@ -250,30 +392,72 @@ function GearEditor({ customGear, setCustomGear }) {
     const fovWidth = parseFloat(calculateFOV(camera.sensorWidth, optic.focalLength))
     const fovHeight = parseFloat(calculateFOV(camera.sensorHeight, optic.focalLength))
 
-    const setup = {
-      id: editingId || `custom-setup-${Date.now()}`,
+    // Determine if camera/optic are custom (from API) or default
+    const isCustomCamera = camera.isCustom
+    const isCustomOptic = optic.isCustom
+
+    const setupData = {
       name: setupForm.name.trim(),
-      optic: setupForm.opticId,
-      camera: setupForm.cameraId,
+      cameraId: isCustomCamera ? setupForm.cameraId : null,
+      opticId: isCustomOptic ? setupForm.opticId : null,
+      defaultCameraId: !isCustomCamera ? setupForm.cameraId : null,
+      defaultOpticId: !isCustomOptic ? setupForm.opticId : null,
       focalLength: optic.focalLength,
       pixelScale,
-      fov: { width: fovWidth, height: fovHeight },
-      category: setupForm.category,
-      isCustom: true
+      fovWidth,
+      fovHeight,
+      category: setupForm.category
     }
 
-    if (editingId) {
-      setCustomGear(prev => ({
-        ...prev,
-        setups: prev.setups.map(s => s.id === editingId ? setup : s)
-      }))
-    } else {
-      setCustomGear(prev => ({
-        ...prev,
-        setups: [...(prev.setups || []), setup]
-      }))
+    try {
+      if (editingId) {
+        // Update existing setup
+        const updated = await put(`/api/setups/${editingId}`, setupData)
+        const setup = {
+          id: updated.id,
+          name: updated.name,
+          camera: updated.cameraId || updated.defaultCameraId,
+          optic: updated.opticId || updated.defaultOpticId,
+          focalLength: parseFloat(updated.focalLength) || 0,
+          pixelScale: parseFloat(updated.pixelScale) || 0,
+          fov: {
+            width: parseFloat(updated.fovWidth) || 0,
+            height: parseFloat(updated.fovHeight) || 0
+          },
+          category: updated.category,
+          isCustom: true
+        }
+        setCustomGear(prev => ({
+          ...prev,
+          setups: prev.setups.map(s => s.id === editingId ? setup : s)
+        }))
+      } else {
+        // Create new setup
+        const created = await post('/api/setups', setupData)
+        const setup = {
+          id: created.id,
+          name: created.name,
+          camera: created.cameraId || created.defaultCameraId,
+          optic: created.opticId || created.defaultOpticId,
+          focalLength: parseFloat(created.focalLength) || 0,
+          pixelScale: parseFloat(created.pixelScale) || 0,
+          fov: {
+            width: parseFloat(created.fovWidth) || 0,
+            height: parseFloat(created.fovHeight) || 0
+          },
+          category: created.category,
+          isCustom: true
+        }
+        setCustomGear(prev => ({
+          ...prev,
+          setups: [...(prev.setups || []), setup]
+        }))
+      }
+      resetForms()
+    } catch (err) {
+      console.error('Failed to save setup:', err)
+      alert('Failed to save setup: ' + err.message)
     }
-    resetForms()
   }
 
   const handleEditSetup = (setup) => {
@@ -287,12 +471,18 @@ function GearEditor({ customGear, setCustomGear }) {
     setShowForm(true)
   }
 
-  const handleDeleteSetup = (id) => {
+  const handleDeleteSetup = async (id) => {
     if (!confirm('Delete this setup?')) return
-    setCustomGear(prev => ({
-      ...prev,
-      setups: prev.setups.filter(s => s.id !== id)
-    }))
+    try {
+      await del(`/api/setups/${id}`)
+      setCustomGear(prev => ({
+        ...prev,
+        setups: prev.setups.filter(s => s.id !== id)
+      }))
+    } catch (err) {
+      console.error('Failed to delete setup:', err)
+      alert('Failed to delete setup: ' + err.message)
+    }
   }
 
   const setupCalcs = getSetupCalculations()
@@ -304,10 +494,19 @@ function GearEditor({ customGear, setCustomGear }) {
         <button
           className="add-gear-button"
           onClick={() => { resetForms(); setShowForm(!showForm) }}
+          disabled={loading}
         >
           {showForm ? 'Cancel' : '+ Add New'}
         </button>
       </div>
+
+      {loading && (
+        <div className="gear-loading">Loading gear...</div>
+      )}
+
+      {error && (
+        <div className="gear-error">Error: {error}</div>
+      )}
 
       {/* Sub-tabs for cameras/optics/setups */}
       <div className="gear-tabs">

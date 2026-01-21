@@ -194,9 +194,8 @@ function App() {
     localStorage.setItem('imagingLog', JSON.stringify(logEntries))
   }, [logEntries])
 
-  useEffect(() => {
-    localStorage.setItem('customGear', JSON.stringify(customGear))
-  }, [customGear])
+  // Note: customGear is now persisted via API in GearEditor
+  // localStorage save removed to avoid conflicts
 
   // Get last imaged date for a target
   const getLastImaged = (targetId) => {
