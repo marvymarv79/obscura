@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   SignedIn,
   SignedOut,
@@ -66,6 +66,17 @@ function App() {
 
   // Data sync state
   const [synced, setSynced] = useState(false)
+
+  // Table scroll state for mobile
+  const tableContainerRef = useRef(null)
+  const [isScrolledRight, setIsScrolledRight] = useState(false)
+
+  // Handle table scroll to detect when scrolled to right edge
+  const handleTableScroll = useCallback((e) => {
+    const { scrollLeft, scrollWidth, clientWidth } = e.target
+    const isAtRight = scrollLeft + clientWidth >= scrollWidth - 10
+    setIsScrolledRight(isAtRight)
+  }, [])
 
   // Load data from localStorage (fallback and initial)
   const loadFromLocalStorage = useCallback(() => {
@@ -612,39 +623,46 @@ function App() {
                       </div>
                       <div className="forecast-table-section">
                         <h3>81-Hour Forecast</h3>
-                        <div className="table-container">
-                          <table>
-                            <thead><tr><th>Hour</th><th>Clouds</th><th>Seeing</th><th>Transp</th><th>Temp</th><th>Dew</th><th>ΔDew</th><th>Wind</th></tr></thead>
-                            <tbody>
-                              {astropheric.RDPS_CloudCover.map((_, i) => {
-                                const startTime = new Date(astropheric.LocalStartTime)
-                                const hourTime = new Date(startTime.getTime() + i * 60 * 60 * 1000)
-                                const timeStr = hourTime.toLocaleTimeString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true })
-                                const clouds = Math.round(astropheric.RDPS_CloudCover[i].Value.ActualValue)
-                                const seeing = astropheric.Astrospheric_Seeing[i].Value.ActualValue
-                                const transparency = astropheric.Astrospheric_Transparency[i].Value.ActualValue
-                                const temp = kelvinToFahrenheit(astropheric.RDPS_Temperature[i].Value.ActualValue)
-                                const dewPoint = kelvinToFahrenheit(astropheric.RDPS_DewPoint[i].Value.ActualValue)
-                                const dewDelta = temp - dewPoint
-                                const windSpeed = Math.round(astropheric.RDPS_WindVelocity[i].Value.ActualValue * 2.237)
-                                const windDir = Math.round(astropheric.RDPS_WindDirection[i].Value.ActualValue)
-                                const rowClass = clouds < 30 && seeing >= 3 && transparency <= 13 ? 'excellent' : clouds < 50 && seeing >= 2 ? 'good' : clouds < 70 ? 'ok' : 'poor'
-                                return (
-                                  <tr key={i} className={rowClass}>
-                                    <td className="time-cell">{timeStr}</td>
-                                    <td style={{color: getCloudColor(clouds)}}>{clouds}%</td>
-                                    <td style={{color: astropheric.Astrospheric_Seeing[i].Value.ValueColor}}>{seeing}/5</td>
-                                    <td style={{color: astropheric.Astrospheric_Transparency[i].Value.ValueColor}}>{transparency}</td>
-                                    <td>{temp}°F</td>
-                                    <td>{dewPoint}°F</td>
-                                    <td style={{color: getDewRiskColor(dewDelta)}}>Δ{dewDelta}°</td>
-                                    <td style={{color: getWindColor(windSpeed)}}>{windSpeed} mph {getWindDirection(windDir)}</td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
+                        <div className={`table-container-wrapper ${isScrolledRight ? 'scrolled-right' : ''}`}>
+                          <div
+                            className="table-container"
+                            ref={tableContainerRef}
+                            onScroll={handleTableScroll}
+                          >
+                            <table>
+                              <thead><tr><th>Hour</th><th>Clouds</th><th>Seeing</th><th>Transp</th><th>Temp</th><th>Dew</th><th>ΔDew</th><th>Wind</th></tr></thead>
+                              <tbody>
+                                {astropheric.RDPS_CloudCover.map((_, i) => {
+                                  const startTime = new Date(astropheric.LocalStartTime)
+                                  const hourTime = new Date(startTime.getTime() + i * 60 * 60 * 1000)
+                                  const timeStr = hourTime.toLocaleTimeString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true })
+                                  const clouds = Math.round(astropheric.RDPS_CloudCover[i].Value.ActualValue)
+                                  const seeing = astropheric.Astrospheric_Seeing[i].Value.ActualValue
+                                  const transparency = astropheric.Astrospheric_Transparency[i].Value.ActualValue
+                                  const temp = kelvinToFahrenheit(astropheric.RDPS_Temperature[i].Value.ActualValue)
+                                  const dewPoint = kelvinToFahrenheit(astropheric.RDPS_DewPoint[i].Value.ActualValue)
+                                  const dewDelta = temp - dewPoint
+                                  const windSpeed = Math.round(astropheric.RDPS_WindVelocity[i].Value.ActualValue * 2.237)
+                                  const windDir = Math.round(astropheric.RDPS_WindDirection[i].Value.ActualValue)
+                                  const rowClass = clouds < 30 && seeing >= 3 && transparency <= 13 ? 'excellent' : clouds < 50 && seeing >= 2 ? 'good' : clouds < 70 ? 'ok' : 'poor'
+                                  return (
+                                    <tr key={i} className={rowClass}>
+                                      <td className="time-cell">{timeStr}</td>
+                                      <td style={{color: getCloudColor(clouds)}}>{clouds}%</td>
+                                      <td style={{color: astropheric.Astrospheric_Seeing[i].Value.ValueColor}}>{seeing}/5</td>
+                                      <td style={{color: astropheric.Astrospheric_Transparency[i].Value.ValueColor}}>{transparency}</td>
+                                      <td>{temp}°F</td>
+                                      <td>{dewPoint}°F</td>
+                                      <td style={{color: getDewRiskColor(dewDelta)}}>Δ{dewDelta}°</td>
+                                      <td style={{color: getWindColor(windSpeed)}}>{windSpeed} mph {getWindDirection(windDir)}</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
+                        <span className="scroll-hint">Swipe left to see more columns</span>
                       </div>
                     </div>
                   )}
