@@ -4,23 +4,35 @@
   box-sizing: border-box;
 }
 
+html {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   background: linear-gradient(135deg, #000000, #22223b, #000000);
   color: #fff;
   min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
 .app {
   min-height: 100vh;
   padding: 1.5rem;
-  overflow-x: hidden; /* Prevent horizontal scroll on app level */
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
 .content {
   width: 100%;
   max-width: 2000px;
   margin: 0 auto;
+  overflow-x: hidden;
 }
 
 /* Auth Container */
@@ -532,42 +544,63 @@ tbody tr:hover {
     flex-direction: row;
   }
 
-  /* Mobile summary cards - smaller to fit screen */
+  /* Mobile summary cards - use minmax to fit screen */
   .summary-cards {
-    grid-template-columns: repeat(2, 1fr);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
+    width: 100%;
+    max-width: 100%;
   }
 
   .summary-card {
-    padding: 0.6rem;
-    gap: 0.5rem;
+    padding: 0.5rem;
+    gap: 0.4rem;
+    min-width: 0; /* Allow shrinking */
+    overflow: hidden;
   }
 
   .card-icon {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  .card-content {
+    min-width: 0; /* Allow text truncation */
+    overflow: hidden;
   }
 
   .card-label {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
   }
 
   .card-value {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .card-value-small {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .card-subvalue {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  /* Mobile table improvements */
+  /* Mobile table - scrollable container */
   .forecast-table-section {
     padding: 0.5rem;
     margin-left: -1rem;
     margin-right: -1rem;
+    width: calc(100% + 2rem);
     border-radius: 0;
     border-left: none;
     border-right: none;
@@ -577,56 +610,29 @@ tbody tr:hover {
     padding-left: 0.5rem;
   }
 
+  .table-container-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+
   .table-container {
+    display: block;
+    width: 100%;
     max-height: 500px;
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
   table {
-    font-size: 0.75rem;
-    min-width: 550px;
+    font-size: 0.7rem;
+    width: max-content;
+    min-width: 500px;
   }
 
   th, td {
-    padding: 0.5rem 0.4rem;
-  }
-
-  /* Sticky first column styling for mobile */
-  th:first-child,
-  td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 5;
-    min-width: 85px;
-    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.3);
-  }
-
-  th:first-child {
-    z-index: 12;
-    background: rgba(40, 40, 60, 1);
-  }
-
-  /* Inherit row background colors for sticky cells */
-  tr.excellent td:first-child {
-    background: rgb(45, 43, 30);
-  }
-
-  tr.good td:first-child {
-    background: rgb(38, 38, 35);
-  }
-
-  tr.ok td:first-child {
-    background: rgb(38, 36, 32);
-  }
-
-  tr.poor td:first-child {
-    background: rgb(40, 32, 30);
-  }
-
-  /* Hover state for sticky cell */
-  tbody tr:hover td:first-child {
-    background: rgba(60, 50, 40, 1);
+    padding: 0.4rem 0.35rem;
+    white-space: nowrap;
   }
 
   /* Scroll hint text */
