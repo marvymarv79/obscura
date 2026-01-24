@@ -14,6 +14,7 @@ body {
 .app {
   min-height: 100vh;
   padding: 1.5rem;
+  overflow-x: hidden; /* Prevent horizontal scroll on app level */
 }
 
 .content {
@@ -381,6 +382,8 @@ h1 {
   padding: 1.5rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 179, 71, 0.15);
+  overflow: hidden; /* Contain child elements */
+  max-width: 100%;
 }
 
 .forecast-table-section h3 {
@@ -391,6 +394,9 @@ h1 {
 
 .table-container-wrapper {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden; /* Contain the scroll indicator gradient */
 }
 
 /* Scroll indicator gradient on right edge */
@@ -537,12 +543,21 @@ tbody tr:hover {
 
   /* Mobile table improvements */
   .forecast-table-section {
-    padding: 1rem;
+    padding: 0.75rem;
+    overflow: hidden;
+    max-width: 100%;
+  }
+
+  .table-container-wrapper {
+    width: 100%;
+    max-width: 100%;
   }
 
   .table-container {
     max-height: 500px;
     border-radius: 8px;
+    overflow-x: scroll; /* Force scrollbar on mobile */
+    -webkit-overflow-scrolling: touch;
   }
 
   table {
@@ -662,6 +677,8 @@ tbody tr:hover {
 
 .tab-content {
   animation: fadeIn 0.2s ease;
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  max-width: 100%;
 }
 
 @keyframes fadeIn {
