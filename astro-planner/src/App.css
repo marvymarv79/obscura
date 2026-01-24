@@ -459,7 +459,7 @@ table {
 }
 
 thead {
-  background: rgba(255, 179, 71, 0.1);
+  background: #1a1a2e; /* Solid background to hide scrolling content */
   position: sticky;
   top: 0;
   z-index: 10;
