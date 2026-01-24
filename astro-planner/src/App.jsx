@@ -33,7 +33,7 @@ function App() {
   const { get, post, put, del, isSignedIn } = useApi()
 
   // Main navigation - top level tabs
-  const [mainTab, setMainTab] = useState('tonight') // tonight, plans, journal
+  const [mainTab, setMainTab] = useState('tonight') // tonight, plans, journal, gear
 
   // Tonight tab state
   const [zipCode, setZipCode] = useState('')
@@ -523,6 +523,12 @@ function App() {
             >
               📓 Journal {journalEntries.length > 0 && <span className="tab-badge">{journalEntries.length}</span>}
             </button>
+            <button
+              className={`main-tab ${mainTab === 'gear' ? 'active' : ''}`}
+              onClick={() => setMainTab('gear')}
+            >
+              ⚙️ Gear
+            </button>
           </div>
 
           {/* Plans Tab */}
@@ -550,6 +556,13 @@ function App() {
               onDeleteTag={handleDeleteTag}
               onRefresh={loadJournal}
             />
+          )}
+
+          {/* Gear Tab */}
+          {mainTab === 'gear' && (
+            <div className="tab-content">
+              <GearEditor customGear={customGear} setCustomGear={setCustomGear} />
+            </div>
           )}
 
           {/* Tonight Tab */}
@@ -593,14 +606,7 @@ function App() {
                 </div>
               )}
 
-              <button
-                className={`gear-button-wide ${activeTab === 'gear' ? 'active' : ''}`}
-                onClick={() => setActiveTab(activeTab === 'gear' ? 'weather' : 'gear')}
-              >
-                Gear Manager
-              </button>
-
-              {coords && weather && moon && astropheric && activeTab !== 'gear' && (
+              {coords && weather && moon && astropheric && (
                 <div className="tab-navigation">
                   <button className={`tab-button ${activeTab === 'weather' ? 'active' : ''}`} onClick={() => setActiveTab('weather')}>Weather</button>
                   <button className={`tab-button ${activeTab === 'targets' ? 'active' : ''}`} onClick={() => setActiveTab('targets')}>Targets {targets.length > 0 && <span className="tab-badge">{targets.length}</span>}</button>
@@ -812,12 +818,6 @@ function App() {
                     </div>
                   )}
                 </>
-              )}
-
-              {activeTab === 'gear' && (
-                <div className="tab-content">
-                  <GearEditor customGear={customGear} setCustomGear={setCustomGear} />
-                </div>
               )}
             </>
           )}

@@ -382,8 +382,6 @@ h1 {
   padding: 1.5rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 179, 71, 0.15);
-  overflow: hidden; /* Contain child elements */
-  max-width: 100%;
 }
 
 .forecast-table-section h3 {
@@ -394,9 +392,6 @@ h1 {
 
 .table-container-wrapper {
   position: relative;
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden; /* Contain the scroll indicator gradient */
 }
 
 /* Scroll indicator gradient on right edge */
@@ -537,32 +532,60 @@ tbody tr:hover {
     flex-direction: row;
   }
 
+  /* Mobile summary cards - smaller to fit screen */
   .summary-cards {
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .summary-card {
+    padding: 0.6rem;
+    gap: 0.5rem;
+  }
+
+  .card-icon {
+    font-size: 1.4rem;
+  }
+
+  .card-label {
+    font-size: 0.65rem;
+  }
+
+  .card-value {
+    font-size: 0.95rem;
+  }
+
+  .card-value-small {
+    font-size: 0.75rem;
+  }
+
+  .card-subvalue {
+    font-size: 0.65rem;
   }
 
   /* Mobile table improvements */
   .forecast-table-section {
-    padding: 0.75rem;
-    overflow: hidden;
-    max-width: 100%;
+    padding: 0.5rem;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
 
-  .table-container-wrapper {
-    width: 100%;
-    max-width: 100%;
+  .forecast-table-section h3 {
+    padding-left: 0.5rem;
   }
 
   .table-container {
     max-height: 500px;
-    border-radius: 8px;
-    overflow-x: scroll; /* Force scrollbar on mobile */
+    overflow: auto;
     -webkit-overflow-scrolling: touch;
   }
 
   table {
     font-size: 0.75rem;
-    min-width: 520px;
+    min-width: 550px;
   }
 
   th, td {
@@ -677,8 +700,6 @@ tbody tr:hover {
 
 .tab-content {
   animation: fadeIn 0.2s ease;
-  overflow-x: hidden; /* Prevent horizontal overflow */
-  max-width: 100%;
 }
 
 @keyframes fadeIn {
