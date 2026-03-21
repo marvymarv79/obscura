@@ -729,7 +729,7 @@ function App() {
                   <div className="forecast-strip-days">
                     {forecastDays.map((day, i) => {
                       const isToday = day.date.toDateString() === new Date().toDateString()
-                      const scoreClass = day.inRange ? (day.score >= 70 ? 'score-good' : day.score >= 40 ? 'score-mid' : 'score-bad') : 'score-none'
+                      const scoreClass = day.inRange ? (day.score >= 60 ? 'score-good' : day.score >= 30 ? 'score-mid' : 'score-bad') : 'score-none'
                       return (
                         <div key={i} className={`forecast-day ${scoreClass} ${selectedDay === i && day.inRange ? 'selected' : ''} ${!day.inRange ? 'out-of-range' : ''}`} onClick={day.inRange ? () => setSelectedDay(i) : undefined}>
                           <span className={`forecast-day-label ${isToday ? 'today' : ''}`}>{day.date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</span>
