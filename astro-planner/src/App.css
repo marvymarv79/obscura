@@ -240,6 +240,10 @@ body {
   opacity: 0.22;
 }
 
+.forecast-day.out-of-range .forecast-day-score {
+  color: var(--accent-crimson);
+}
+
 .forecast-day-label {
   font-size: 0.65rem;
   font-weight: var(--font-heading);
