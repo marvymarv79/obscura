@@ -71,6 +71,8 @@ export function buildForecastDays(astropheric, kelvinToF) {
     const tempF = kelvinToF(tempK)
     const dewF = kelvinToF(dewK)
 
+    const windMs = astropheric.RDPS_WindVelocity[i].Value.ActualValue
+
     allHours.push({
       index: i,
       time: hourTime,
@@ -78,9 +80,11 @@ export function buildForecastDays(astropheric, kelvinToF) {
       seeing: astropheric.Astrospheric_Seeing[i].Value.ActualValue,
       clouds: astropheric.RDPS_CloudCover[i].Value.ActualValue,
       transparency: astropheric.Astrospheric_Transparency[i].Value.ActualValue,
-      wind: Math.round(astropheric.RDPS_WindVelocity[i].Value.ActualValue * 2.237),
+      wind: Math.round(windMs * 2.237),
+      windMs,
       windDir: Math.round(astropheric.RDPS_WindDirection[i].Value.ActualValue),
       dewDelta: tempF - dewF,
+      dewDeltaC: tempK - dewK,
       tempK,
       dewK,
     })

@@ -21,6 +21,7 @@ import {
   calculateGearCompatibility
 } from './gearconfig'
 import { buildForecastDays } from './nightScore'
+import { seeingMetric, transparencyMetric, cloudMetric, windMetric, moonMetric, dewMetric } from './conditionsHelpers'
 import ImagingLog from './imaginglog'
 import GearEditor from './GearEditor'
 import PlansHistory from './components/PlansHistory'
@@ -43,6 +44,7 @@ function App() {
   const [astropheric, setAstropheric] = useState(null)
   const [moon, setMoon] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [fetchError, setFetchError] = useState(null)
   const [activeTab, setActiveTab] = useState('weather')
   const [savedLocations, setSavedLocations] = useState([])
   const [locationName, setLocationName] = useState('')
@@ -261,15 +263,14 @@ function App() {
       const { data, timestamp } = JSON.parse(cached)
       if (Date.now() - timestamp > FORECAST_CACHE_TTL) { localStorage.removeItem(key); return null }
       return data
-    } catch (e) { console.warn('[cache] forecast read failed:', e); return null }
+    } catch { return null }
   }
 
   const setCachedForecast = (lat, lng, data) => {
     try {
       const key = cacheKey('forecast', lat, lng)
       localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
-      console.log('[cache] wrote forecast:', key)
-    } catch (e) { console.warn('[cache] forecast write failed:', e) }
+    } catch { /* quota exceeded */ }
   }
 
   const getCachedMoon = (lat, lng, dateStr) => {
@@ -280,29 +281,33 @@ function App() {
       const { data, timestamp } = JSON.parse(cached)
       if (Date.now() - timestamp > MOON_CACHE_TTL) { localStorage.removeItem(key); return null }
       return data
-    } catch (e) { console.warn('[cache] moon read failed:', e); return null }
+    } catch { return null }
   }
 
   const setCachedMoon = (lat, lng, dateStr, data) => {
     try {
       const key = cacheKey('moon', lat, lng, dateStr)
       localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
-      console.log('[cache] wrote moon:', key)
-    } catch (e) { console.warn('[cache] moon write failed:', e) }
+    } catch { /* quota exceeded */ }
   }
 
   const fetchForecastData = async (latitude, longitude) => {
+    setFetchError(null)
     const cached = getCachedForecast(latitude, longitude)
     if (cached) {
-      console.log('[cache] forecast HIT for', latitude.toFixed(2), longitude.toFixed(2))
       setAstropheric(cached)
     } else {
-      console.log('[cache] forecast MISS for', latitude.toFixed(2), longitude.toFixed(2))
-      const astrophericResponse = await fetch(`/api/astropheric?lat=${latitude}&lon=${longitude}`)
-      if (astrophericResponse.ok) {
-        const astroData = await astrophericResponse.json()
-        setAstropheric(astroData.data)
-        setCachedForecast(latitude, longitude, astroData.data)
+      try {
+        const astrophericResponse = await fetch(`/api/astropheric?lat=${latitude}&lon=${longitude}`)
+        if (astrophericResponse.ok) {
+          const astroData = await astrophericResponse.json()
+          setAstropheric(astroData.data)
+          setCachedForecast(latitude, longitude, astroData.data)
+        } else {
+          setFetchError('Forecast unavailable \u2014 check your API key or try again.')
+        }
+      } catch {
+        setFetchError('Forecast unavailable \u2014 check your API key or try again.')
       }
     }
   }
@@ -311,10 +316,8 @@ function App() {
     const dateStr = new Date().toISOString().split('T')[0]
     const cached = getCachedMoon(latitude, longitude, dateStr)
     if (cached) {
-      console.log('[cache] moon HIT for', latitude.toFixed(2), longitude.toFixed(2), dateStr)
       setMoon(cached)
     } else {
-      console.log('[cache] moon MISS for', latitude.toFixed(2), longitude.toFixed(2), dateStr)
       const moonResponse = await fetch(`/api/moon?lat=${latitude}&lon=${longitude}`)
       const moonData = await moonResponse.json()
       setMoon(moonData)
@@ -556,20 +559,21 @@ function App() {
     const day = forecastDays[selectedDay]
     if (!day || !day.inRange || day.hours.length === 0) return null
     const hrs = day.hours
-    const avg = (arr, key) => arr.reduce((s, h) => s + h[key], 0) / arr.length
+    const avg = (arr, key) => {
+      const valid = hrs.filter(h => h[key] != null)
+      if (valid.length === 0) return 0
+      return valid.reduce((s, h) => s + h[key], 0) / valid.length
+    }
     return {
-      seeing: +(avg(hrs, 'seeing').toFixed(1)),
-      clouds: Math.round(avg(hrs, 'clouds')),
-      transparency: +(avg(hrs, 'transparency').toFixed(1)),
-      wind: Math.round(avg(hrs, 'wind')),
-      windDir: getWindDirection(Math.round(avg(hrs, 'windDir'))),
-      dewDelta: Math.round(avg(hrs, 'dewDelta')),
+      seeing: avg(hrs, 'seeing'),
+      clouds: avg(hrs, 'clouds'),
+      transparency: avg(hrs, 'transparency'),
+      windMs: avg(hrs, 'windMs'),
+      dewDeltaC: avg(hrs, 'dewDeltaC'),
     }
   }
 
   const selectedConditions = getSelectedDayConditions()
-  const currentWind = selectedConditions ? selectedConditions.wind : (astropheric ? Math.round(astropheric.RDPS_WindVelocity[0].Value.ActualValue * 2.237) : null)
-  const currentWindDir = selectedConditions ? selectedConditions.windDir : (astropheric ? getWindDirection(Math.round(astropheric.RDPS_WindDirection[0].Value.ActualValue)) : null)
 
   return (
     <div className="app">
@@ -764,7 +768,7 @@ function App() {
               )}
 
               {/* Dashboard: Location + Conditions cards */}
-              {coords && weather && moon && astropheric && activeTab === 'weather' && (
+              {coords && weather && activeTab === 'weather' && (
                 <>
                   <div className="dashboard-grid">
                     {/* Location Card */}
@@ -802,46 +806,77 @@ function App() {
                       <div className="dash-card-header">
                         <span className="dash-card-title">{selectedDay === 0 ? 'TONIGHT\u2019S CONDITIONS' : `${forecastDays[selectedDay]?.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()} NIGHT`}</span>
                       </div>
-                      {selectedConditions ? (
+                      {fetchError ? (
+                        <div className="empty-hint"><p style={{color: 'var(--text-muted)'}}>{fetchError}</p></div>
+                      ) : !astropheric || loading ? (
+                        <div className="conditions-tiles">
+                          {['SEEING','TRANSPARENCY','CLOUD COVER','WIND','MOON','DEW RISK'].map(label => (
+                            <div key={label} className="condition-tile condition-tile--skeleton">
+                              <span className="tile-label">{label}</span>
+                              <span className="tile-value skeleton-block">&nbsp;</span>
+                              <span className="tile-sub skeleton-block">&nbsp;</span>
+                              <div className="tile-bar"><div className="tile-bar-fill" style={{width: '0%'}}></div></div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : selectedConditions ? (() => {
+                        const s = seeingMetric(selectedConditions.seeing)
+                        const t = transparencyMetric(selectedConditions.transparency)
+                        const c = cloudMetric(selectedConditions.clouds)
+                        const w = windMetric(selectedConditions.windMs)
+                        const m = moon ? moonMetric(moon.illumination, moon.phase) : null
+                        const d = dewMetric(selectedConditions.dewDeltaC)
+                        return (
                       <div className="conditions-tiles">
                         <div className="condition-tile">
                           <span className="tile-label">SEEING</span>
-                          <span className="tile-value" style={{color: getSeeingColor(selectedConditions.seeing)}}>{selectedConditions.seeing}/5</span>
-                          <span className="tile-sub">{getSeeingDescription(selectedConditions.seeing)}</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${selectedConditions.seeing * 20}%`, background: getSeeingColor(selectedConditions.seeing)}}></div></div>
+                          <span className="tile-value" style={{color: s.color}}>{s.display}</span>
+                          <span className="tile-sub">{s.sub}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${s.barPct}%`, background: s.color}}></div></div>
                         </div>
                         <div className="condition-tile">
                           <span className="tile-label">TRANSPARENCY</span>
-                          <span className="tile-value" style={{color: getTransparencyColor(selectedConditions.transparency)}}>{getTransparencyDescription(selectedConditions.transparency)}</span>
-                          <span className="tile-sub">{selectedConditions.transparency}</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.max(0, (30 - selectedConditions.transparency) / 30 * 100)}%`, background: getTransparencyColor(selectedConditions.transparency)}}></div></div>
+                          <span className="tile-value" style={{color: t.color}}>{t.display}</span>
+                          <span className="tile-sub">{t.sub}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${t.barPct}%`, background: t.color}}></div></div>
                         </div>
                         <div className="condition-tile">
                           <span className="tile-label">CLOUD COVER</span>
-                          <span className="tile-value" style={{color: getCloudColor(selectedConditions.clouds)}}>{selectedConditions.clouds}%</span>
-                          <span className="tile-sub">{getCloudDescription(selectedConditions.clouds)}</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${100 - selectedConditions.clouds}%`, background: getCloudColor(selectedConditions.clouds)}}></div></div>
+                          <span className="tile-value" style={{color: c.color}}>{c.display}</span>
+                          <span className="tile-sub">{c.sub}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${c.barPct}%`, background: c.color}}></div></div>
                         </div>
                         <div className="condition-tile">
                           <span className="tile-label">WIND</span>
-                          <span className="tile-value" style={{color: getWindColor(currentWind)}}>{currentWind} mph</span>
-                          <span className="tile-sub">{currentWindDir}</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.max(0, (30 - Math.min(currentWind, 30)) / 30 * 100)}%`, background: getWindColor(currentWind)}}></div></div>
+                          <span className="tile-value" style={{color: w.color}}>{w.display}</span>
+                          <span className="tile-sub">{w.sub}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${w.barPct}%`, background: w.color}}></div></div>
                         </div>
                         <div className="condition-tile">
                           <span className="tile-label">MOON</span>
-                          <span className="tile-value" style={{color: getMoonColor(moon.illumination)}}>{moon.illumination}%</span>
-                          <span className="tile-sub">{moon.emoji} {moon.phase}</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${100 - moon.illumination}%`, background: getMoonColor(moon.illumination)}}></div></div>
+                          {m ? (
+                            <>
+                              <span className="tile-value" style={{color: m.color}}>{m.display}</span>
+                              <span className="tile-sub">{m.sub}</span>
+                              <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${m.barPct}%`, background: m.color}}></div></div>
+                            </>
+                          ) : (
+                            <>
+                              <span className="tile-value" style={{color: 'var(--text-muted)'}}>--</span>
+                              <span className="tile-sub">Loading...</span>
+                              <div className="tile-bar"><div className="tile-bar-fill" style={{width: '0%'}}></div></div>
+                            </>
+                          )}
                         </div>
                         <div className="condition-tile">
                           <span className="tile-label">DEW RISK</span>
-                          <span className="tile-value" style={{color: getDewRiskColor(selectedConditions.dewDelta)}}>{getDewRiskDescription(selectedConditions.dewDelta)}</span>
-                          <span className="tile-sub">&Delta;{selectedConditions.dewDelta}°F</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.min(selectedConditions.dewDelta, 25) / 25 * 100}%`, background: getDewRiskColor(selectedConditions.dewDelta)}}></div></div>
+                          <span className="tile-value" style={{color: d.color}}>{d.display}</span>
+                          <span className="tile-sub">{d.sub}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${d.barPct}%`, background: d.color}}></div></div>
                         </div>
                       </div>
-                      ) : (
+                        )
+                      })() : (
                       <div className="empty-hint"><p>No imaging window data available for this night.</p></div>
                       )}
                     </div>
