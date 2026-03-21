@@ -462,7 +462,11 @@ function Apertura() {
 
   const deleteProfile = async (id) => {
     try {
-      const res = await fetch(`/api/apertura/profiles/${id}`, { method: 'DELETE' })
+      const res = await fetch('/api/apertura/profiles/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
       if (!res.ok) throw new Error('Delete failed')
       showToast('Profile deleted')
       setConfirmDeleteId(null)
