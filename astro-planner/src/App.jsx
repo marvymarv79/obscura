@@ -248,48 +248,56 @@ function App() {
   const FORECAST_CACHE_TTL = 3 * 60 * 60 * 1000 // 3 hours
   const MOON_CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
 
+  const cacheKey = (prefix, lat, lng, extra) => {
+    const key = `${prefix}_${parseFloat(lat).toFixed(2)}_${parseFloat(lng).toFixed(2)}${extra ? '_' + extra : ''}`
+    return key
+  }
+
   const getCachedForecast = (lat, lng) => {
     try {
-      const key = `forecast_${lat.toFixed(2)}_${lng.toFixed(2)}`
+      const key = cacheKey('forecast', lat, lng)
       const cached = localStorage.getItem(key)
       if (!cached) return null
       const { data, timestamp } = JSON.parse(cached)
       if (Date.now() - timestamp > FORECAST_CACHE_TTL) { localStorage.removeItem(key); return null }
       return data
-    } catch { return null }
+    } catch (e) { console.warn('[cache] forecast read failed:', e); return null }
   }
 
   const setCachedForecast = (lat, lng, data) => {
     try {
-      const key = `forecast_${lat.toFixed(2)}_${lng.toFixed(2)}`
+      const key = cacheKey('forecast', lat, lng)
       localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
-    } catch { /* quota exceeded, ignore */ }
+      console.log('[cache] wrote forecast:', key)
+    } catch (e) { console.warn('[cache] forecast write failed:', e) }
   }
 
   const getCachedMoon = (lat, lng, dateStr) => {
     try {
-      const key = `moon_${lat.toFixed(2)}_${lng.toFixed(2)}_${dateStr}`
+      const key = cacheKey('moon', lat, lng, dateStr)
       const cached = localStorage.getItem(key)
       if (!cached) return null
       const { data, timestamp } = JSON.parse(cached)
       if (Date.now() - timestamp > MOON_CACHE_TTL) { localStorage.removeItem(key); return null }
       return data
-    } catch { return null }
+    } catch (e) { console.warn('[cache] moon read failed:', e); return null }
   }
 
   const setCachedMoon = (lat, lng, dateStr, data) => {
     try {
-      const key = `moon_${lat.toFixed(2)}_${lng.toFixed(2)}_${dateStr}`
+      const key = cacheKey('moon', lat, lng, dateStr)
       localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
-    } catch { /* quota exceeded, ignore */ }
+      console.log('[cache] wrote moon:', key)
+    } catch (e) { console.warn('[cache] moon write failed:', e) }
   }
 
   const fetchForecastData = async (latitude, longitude) => {
-    // Check cache first
     const cached = getCachedForecast(latitude, longitude)
     if (cached) {
+      console.log('[cache] forecast HIT for', latitude.toFixed(2), longitude.toFixed(2))
       setAstropheric(cached)
     } else {
+      console.log('[cache] forecast MISS for', latitude.toFixed(2), longitude.toFixed(2))
       const astrophericResponse = await fetch(`/api/astropheric?lat=${latitude}&lon=${longitude}`)
       if (astrophericResponse.ok) {
         const astroData = await astrophericResponse.json()
@@ -303,8 +311,10 @@ function App() {
     const dateStr = new Date().toISOString().split('T')[0]
     const cached = getCachedMoon(latitude, longitude, dateStr)
     if (cached) {
+      console.log('[cache] moon HIT for', latitude.toFixed(2), longitude.toFixed(2), dateStr)
       setMoon(cached)
     } else {
+      console.log('[cache] moon MISS for', latitude.toFixed(2), longitude.toFixed(2), dateStr)
       const moonResponse = await fetch(`/api/moon?lat=${latitude}&lon=${longitude}`)
       const moonData = await moonResponse.json()
       setMoon(moonData)
@@ -717,7 +727,7 @@ function App() {
                       const isToday = day.date.toDateString() === new Date().toDateString()
                       const scoreClass = day.inRange ? (day.score >= 70 ? 'score-good' : day.score >= 40 ? 'score-mid' : 'score-bad') : 'score-none'
                       return (
-                        <div key={i} className={`forecast-day ${scoreClass} ${selectedDay === i ? 'selected' : ''} ${!day.inRange ? 'out-of-range' : ''}`} onClick={() => setSelectedDay(i)}>
+                        <div key={i} className={`forecast-day ${scoreClass} ${selectedDay === i && day.inRange ? 'selected' : ''} ${!day.inRange ? 'out-of-range' : ''}`} onClick={day.inRange ? () => setSelectedDay(i) : undefined}>
                           <span className={`forecast-day-label ${isToday ? 'today' : ''}`}>{day.date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</span>
                           <span className="forecast-day-date">{day.date.getDate()}</span>
                           <span className="forecast-day-score">{day.inRange ? day.score : '\u2014'}</span>
