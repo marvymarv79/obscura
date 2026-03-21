@@ -38,6 +38,29 @@ export default async function handler(req, res) {
     }
   }
 
+  if (req.method === 'DELETE') {
+    const { id } = req.query
+    if (!id) {
+      return res.status(400).json({ error: 'Missing profile id' })
+    }
+    const numId = parseInt(id, 10)
+    if (isNaN(numId)) {
+      return res.status(400).json({ error: 'Invalid profile id', received: id })
+    }
+    try {
+      const result = await sql`
+        DELETE FROM apt_imaging_profiles WHERE id = ${numId} RETURNING id
+      `
+      if (result.length === 0) {
+        return res.status(404).json({ error: 'Profile not found', id: numId })
+      }
+      return res.status(200).json({ deleted: result[0].id })
+    } catch (error) {
+      console.error('Delete profile error:', error)
+      return res.status(500).json({ error: error.message })
+    }
+  }
+
   if (req.method === 'POST') {
     try {
       const { profile_name, camera_id, optics_id, reducer_flattener_id,
