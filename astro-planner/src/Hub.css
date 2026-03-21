@@ -1,0 +1,153 @@
+/* ── Hub layout ── */
+
+.hub {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 3rem;
+  background: var(--bg-base);
+}
+
+/* Hero */
+.hub-hero {
+  text-align: center;
+}
+
+.hub-title {
+  font-size: 3rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.hub-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+/* Grid */
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 720px;
+}
+
+/* ── Card accent variants ── */
+
+.hub-card--ember {
+  --card-accent: var(--accent-ember);
+  --card-accent-glow: rgba(232, 99, 10, 0.12);
+  --card-accent-border: rgba(232, 99, 10, 0.25);
+}
+
+.hub-card--crimson {
+  --card-accent: var(--accent-crimson);
+  --card-accent-glow: rgba(204, 41, 54, 0.12);
+  --card-accent-border: rgba(204, 41, 54, 0.25);
+}
+
+/* ── Card base ── */
+
+.hub-card {
+  background: var(--bg-card);
+  border: 1px solid var(--card-accent-border, var(--border-default));
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s, background 0.2s;
+  position: relative;
+}
+
+.hub-card--live {
+  cursor: pointer;
+}
+
+.hub-card--live:hover {
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--card-accent-glow);
+  border-color: var(--card-accent);
+}
+
+.hub-card--live:focus-visible {
+  outline: 2px solid var(--card-accent);
+  outline-offset: 2px;
+}
+
+.hub-card--soon {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Card internals */
+.hub-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.hub-card-name {
+  font-size: 1.35rem;
+  color: var(--card-accent);
+}
+
+.hub-card-badge {
+  font-size: 0.7rem;
+  font-weight: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2em 0.6em;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.hub-card-badge--live {
+  background: rgba(16, 185, 90, 0.12);
+  color: var(--accent-green);
+  border: 1px solid rgba(16, 185, 90, 0.25);
+}
+
+.hub-card-badge--soon {
+  background: rgba(240, 208, 176, 0.04);
+  color: var(--text-muted);
+  border: 1px solid var(--border-default);
+}
+
+.hub-card-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.hub-card-arrow {
+  position: absolute;
+  bottom: 1.25rem;
+  right: 1.5rem;
+  font-size: 1.2rem;
+  color: var(--card-accent);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.hub-card--live:hover .hub-card-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (max-width: 480px) {
+  .hub-title {
+    font-size: 2.2rem;
+  }
+
+  .hub-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -53,6 +53,7 @@ function App() {
   const [activeSetups, setActiveSetups] = useState([])
   const [logEntries, setLogEntries] = useState([])
   const [customGear, setCustomGear] = useState({ cameras: [], optics: [], setups: [] })
+  const [selectedDay, setSelectedDay] = useState(0)
 
   // Plans state
   const [savedPlans, setSavedPlans] = useState([])
@@ -225,14 +226,16 @@ function App() {
   const getSeeingDescription = (s) => ['Cloudy', 'Poor', 'Below Average', 'Average', 'Above Average', 'Excellent'][Math.round(s)] || 'Unknown'
   const getTransparencyDescription = (t) => t <= 5 ? 'Excellent' : t <= 9 ? 'Above Average' : t <= 13 ? 'Average' : t <= 23 ? 'Below Average' : t <= 27 ? 'Poor' : 'Cloudy'
   const getWindDirection = (d) => ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][Math.round(d/22.5)%16]
-  const getMoonColor = (i) => i < 20 ? '#ffd60a' : i < 50 ? '#ffb347' : '#ff5400'
+  const getMoonColor = (i) => i < 20 ? '#10b95a' : i < 50 ? '#e8630a' : '#cc2936'
   const getDewRisk = (tK, dK) => kelvinToFahrenheit(tK) - kelvinToFahrenheit(dK)
   const getDewRiskDescription = (d) => d <= 5 ? 'High Risk' : d <= 10 ? 'Moderate' : d <= 15 ? 'Low Risk' : 'Very Low'
-  const getDewRiskColor = (d) => d <= 5 ? '#ff5400' : d <= 10 ? '#ffb347' : d <= 15 ? '#ffd60a' : '#4ade80'
-  const getWindColor = (m) => m <= 8 ? '#4ade80' : m <= 15 ? '#ffd60a' : '#ff5400'
-  const getCloudColor = (p) => p <= 10 ? '#4ade80' : p <= 30 ? '#ffd60a' : '#ff5400'
-  const getScoreColor = (s) => s >= 70 ? '#4ade80' : s >= 40 ? '#ffd60a' : '#ff5400'
-  const getMoonSeparationColor = (d) => d >= 90 ? '#4ade80' : d >= 45 ? '#ffd60a' : '#ff5400'
+  const getDewRiskColor = (d) => d <= 5 ? '#cc2936' : d <= 10 ? '#e8630a' : d <= 15 ? '#e8630a' : '#10b95a'
+  const getWindColor = (m) => m <= 8 ? '#10b95a' : m <= 15 ? '#e8630a' : '#cc2936'
+  const getCloudColor = (p) => p <= 10 ? '#10b95a' : p <= 30 ? '#e8630a' : '#cc2936'
+  const getScoreColor = (s) => s >= 70 ? '#10b95a' : s >= 40 ? '#e8630a' : '#cc2936'
+  const getMoonSeparationColor = (d) => d >= 90 ? '#10b95a' : d >= 45 ? '#e8630a' : '#cc2936'
+  const getSeeingColor = (s) => s >= 4 ? '#10b95a' : s >= 2 ? '#e8630a' : '#cc2936'
+  const getTransparencyColor = (t) => t <= 5 ? '#10b95a' : t <= 13 ? '#e8630a' : '#cc2936'
   const toggleTypeFilter = (type) => setTargetFilters(p => ({ ...p, types: p.types.includes(type) ? p.types.filter(t => t !== type) : [...p.types, type] }))
   const formatTimeShort = (d) => d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--'
   const kelvinToFahrenheit = (k) => Math.round((k - 273.15) * 9/5 + 32)
@@ -477,12 +480,50 @@ function App() {
 
   const currentDewDelta = astropheric ? getDewRisk(astropheric.RDPS_Temperature[0].Value.ActualValue, astropheric.RDPS_DewPoint[0].Value.ActualValue) : null
 
+  const getForecastDays = () => {
+    if (!astropheric) return []
+    const startTime = new Date(astropheric.LocalStartTime)
+    const hours = astropheric.RDPS_CloudCover.length
+    const dayMap = {}
+    for (let i = 0; i < hours; i++) {
+      const hourTime = new Date(startTime.getTime() + i * 60 * 60 * 1000)
+      const dateKey = hourTime.toLocaleDateString('en-CA')
+      if (!dayMap[dateKey]) dayMap[dateKey] = []
+      dayMap[dateKey].push({
+        clouds: astropheric.RDPS_CloudCover[i].Value.ActualValue,
+        seeing: astropheric.Astrospheric_Seeing[i].Value.ActualValue,
+        transparency: astropheric.Astrospheric_Transparency[i].Value.ActualValue,
+      })
+    }
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const days = []
+    for (let d = 0; d < 7; d++) {
+      const dayDate = new Date(today.getTime() + d * 24 * 60 * 60 * 1000)
+      const dateKey = dayDate.toLocaleDateString('en-CA')
+      const hourData = dayMap[dateKey]
+      if (hourData && hourData.length > 0) {
+        const avgClouds = hourData.reduce((s, h) => s + h.clouds, 0) / hourData.length
+        const avgSeeing = hourData.reduce((s, h) => s + h.seeing, 0) / hourData.length
+        const avgTransp = hourData.reduce((s, h) => s + h.transparency, 0) / hourData.length
+        const score = Math.round((100 - avgClouds) * 0.4 + (avgSeeing / 5) * 100 * 0.3 + Math.max(0, 100 - avgTransp * 3.5) * 0.3)
+        days.push({ date: dayDate, score: Math.min(100, Math.max(0, score)), inRange: true })
+      } else {
+        days.push({ date: dayDate, score: null, inRange: false })
+      }
+    }
+    return days
+  }
+
+  const currentWind = astropheric ? Math.round(astropheric.RDPS_WindVelocity[0].Value.ActualValue * 2.237) : null
+  const currentWindDir = astropheric ? getWindDirection(Math.round(astropheric.RDPS_WindDirection[0].Value.ActualValue)) : null
+
   return (
     <div className="app">
       <SignedOut>
         <div className="auth-container">
           <div className="auth-content">
-            <h1>🔭 Obscura</h1>
+            <h1 className="auth-logo">Obs<span>cura</span></h1>
             <p>Plan your astrophotography session</p>
             <div className="auth-buttons">
               <SignInButton mode="modal">
@@ -494,37 +535,29 @@ function App() {
       </SignedOut>
 
       <SignedIn>
+        {/* Top Nav Bar */}
+        <nav className="top-nav">
+          <div className="nav-left">
+            <svg className="nav-logo-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+            </svg>
+            <span className="nav-wordmark">Obs<span className="nav-accent">cura</span></span>
+          </div>
+          <div className="nav-center">
+            <button className={`nav-pill ${mainTab === 'tonight' ? 'active' : ''}`} onClick={() => { setMainTab('tonight'); setActiveTab('weather') }}>Tonight</button>
+            <button className={`nav-pill ${mainTab === 'plans' ? 'active' : ''}`} onClick={() => { setMainTab('plans'); loadPlans() }}>Plans</button>
+            <button className={`nav-pill ${mainTab === 'journal' ? 'active' : ''}`} onClick={() => { setMainTab('journal'); loadJournal() }}>Journal</button>
+            <button className={`nav-pill ${mainTab === 'targets' ? 'active' : ''}`} onClick={() => setMainTab('targets')}>
+              Targets {targets.length > 0 && <span className="pill-badge">{targets.length}</span>}
+            </button>
+          </div>
+          <div className="nav-right">
+            <div className="nav-avatar">{user?.firstName?.[0] || ''}{user?.lastName?.[0] || ''}</div>
+            <UserButton />
+          </div>
+        </nav>
+
         <div className="content">
-          <div className="header-section">
-            <div className="header-top">
-              <h1>🔭 Obscura</h1>
-              <UserButton />
-            </div>
-            <p>Plan your astrophotography session</p>
-          </div>
-
-          {/* Main Navigation Tabs */}
-          <div className="main-navigation">
-            <button
-              className={`main-tab ${mainTab === 'tonight' ? 'active' : ''}`}
-              onClick={() => setMainTab('tonight')}
-            >
-              🌙 Tonight
-            </button>
-            <button
-              className={`main-tab ${mainTab === 'plans' ? 'active' : ''}`}
-              onClick={() => { setMainTab('plans'); loadPlans() }}
-            >
-              📋 Plans {savedPlans.length > 0 && <span className="tab-badge">{savedPlans.length}</span>}
-            </button>
-            <button
-              className={`main-tab ${mainTab === 'journal' ? 'active' : ''}`}
-              onClick={() => { setMainTab('journal'); loadJournal() }}
-            >
-              📓 Journal {journalEntries.length > 0 && <span className="tab-badge">{journalEntries.length}</span>}
-            </button>
-          </div>
-
           {/* Plans Tab */}
           {mainTab === 'plans' && (
             <PlansHistory
@@ -552,12 +585,226 @@ function App() {
             />
           )}
 
+          {/* Targets Tab (promoted from sub-tab) */}
+          {mainTab === 'targets' && (
+            <div className="tab-content">
+              {coords && moon ? (
+                <div className="targets-section">
+                  <div className="targets-header">
+                    <h3>Recommended Targets</h3>
+                    <button className="filter-toggle" onClick={() => setShowTargetFilters(!showTargetFilters)}>{showTargetFilters ? 'Hide Filters' : 'Filters'}</button>
+                  </div>
+                  {showTargetFilters && (
+                    <div className="target-filters">
+                      <div className="filter-group">
+                        <label>Filter by Gear (score ≥{GEAR_MATCH_THRESHOLD}):</label>
+                        <select value={targetFilters.gearSetup || ''} onChange={(e) => setTargetFilters(prev => ({ ...prev, gearSetup: e.target.value || null }))}>
+                          <option value="">All Gear</option>
+                          {IMAGING_SETUPS.map(setup => (<option key={setup.id} value={setup.id}>{setup.name}</option>))}
+                        </select>
+                      </div>
+                      <div className="filter-group">
+                        <label>Type:</label>
+                        <div className="filter-chips">{Object.values(TARGET_TYPES).map(type => (<button key={type} className={`filter-chip ${targetFilters.types.includes(type) ? 'active' : ''}`} onClick={() => toggleTypeFilter(type)}>{type}</button>))}</div>
+                      </div>
+                      <div className="filter-group">
+                        <label>Recommended Focal Length:</label>
+                        <select value={targetFilters.focalLength || ''} onChange={(e) => setTargetFilters(prev => ({ ...prev, focalLength: e.target.value || null }))}><option value="">All</option>{Object.values(FOCAL_LENGTH).map(fl => (<option key={fl} value={fl}>{fl}</option>))}</select>
+                      </div>
+                      <div className="filter-group">
+                        <label>Min Visibility Score: {targetFilters.minScore}</label>
+                        <input type="range" min="0" max="80" value={targetFilters.minScore} onChange={(e) => setTargetFilters(prev => ({ ...prev, minScore: parseInt(e.target.value) }))} />
+                      </div>
+                    </div>
+                  )}
+                  <div className="targets-count">
+                    Showing {targets.length} of {DSO_DATABASE.length} targets
+                    {targetFilters.gearSetup && <span className="gear-filter-badge"> for {IMAGING_SETUPS.find(s => s.id === targetFilters.gearSetup)?.name}</span>}
+                    {selectedTargets.length > 0 && <span className="selected-count"> &bull; {selectedTargets.length} selected</span>}
+                  </div>
+                  <div className="targets-grid">
+                    {targets.slice(0, 30).map((item) => {
+                      const { target, score, gearScore, bestSetup, currentAltitude, currentAzimuth, moonSeparation, hoursAbove30, isGoodMonth } = item
+                      const isSelected = isTargetSelected(target.id)
+                      const lastImaged = getLastImaged(target.id)
+                      return (
+                        <div key={target.id} className={`target-card ${isGoodMonth ? 'in-season' : ''} ${isSelected ? 'selected' : ''}`} onClick={() => toggleTargetSelection(item)}>
+                          <div className="target-select-indicator">{isSelected ? '✓' : '+'}</div>
+                          <div className="target-header">
+                            <div className="target-name">{target.name}</div>
+                            <div className="target-scores">
+                              <div className="score-badge" style={{ background: getScoreColor(score) }} title="Visibility">{score}</div>
+                              <div className="score-badge gear-score" style={{ background: getScoreColor(gearScore) }} title="Gear">{gearScore}</div>
+                            </div>
+                          </div>
+                          <div className="target-type-line"><span className="target-type">{target.type}</span><span className="target-constellation">{target.constellation}</span></div>
+                          <div className="target-details">
+                            <div className="target-detail"><span className="detail-label">Alt</span><span className="detail-value" style={{ color: getScoreColor(currentAltitude > 30 ? 70 : currentAltitude > 15 ? 50 : 20) }}>{Math.round(currentAltitude)}°</span></div>
+                            <div className="target-detail"><span className="detail-label">Az</span><span className="detail-value">{getCardinalDirection(currentAzimuth)}</span></div>
+                            <div className="target-detail"><span className="detail-label">Moon</span><span className="detail-value" style={{ color: getMoonSeparationColor(moonSeparation) }}>{Math.round(moonSeparation)}°</span></div>
+                            <div className="target-detail"><span className="detail-label">Hrs</span><span className="detail-value">{hoursAbove30.toFixed(1)}</span></div>
+                          </div>
+                          <div className="target-meta"><span className="target-size">{target.size.width}&prime; &times; {target.size.height}&prime;</span><span className="target-mag">mag {target.magnitude}</span></div>
+                          {bestSetup && <div className="target-best-setup">Best: {bestSetup.setup.name} ({bestSetup.fovFit.fillPercent.toFixed(0)}% fill)</div>}
+                          {lastImaged && <div className="target-last-imaged">Last imaged: {formatLastImaged(lastImaged)}</div>}
+                          {target.description && <div className="target-description">{target.description}</div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-state"><p>Load a location from the Tonight tab to see target recommendations.</p></div>
+              )}
+            </div>
+          )}
+
           {/* Tonight Tab */}
           {mainTab === 'tonight' && (
             <>
-              {savedLocations.length > 0 && (
+              {/* Forecast Strip */}
+              {astropheric && activeTab === 'weather' && (
+                <div className="forecast-strip">
+                  <div className="forecast-strip-header">
+                    <span className="forecast-strip-label">81-HR FORECAST</span>
+                    {coords && <span className="forecast-strip-location">{coords.locationName}</span>}
+                  </div>
+                  <div className="forecast-strip-days">
+                    {getForecastDays().map((day, i) => {
+                      const isToday = day.date.toDateString() === new Date().toDateString()
+                      const scoreClass = day.inRange ? (day.score >= 70 ? 'score-good' : day.score >= 40 ? 'score-mid' : 'score-bad') : 'score-none'
+                      return (
+                        <div key={i} className={`forecast-day ${scoreClass} ${selectedDay === i ? 'selected' : ''}`} onClick={() => setSelectedDay(i)}>
+                          <span className={`forecast-day-label ${isToday ? 'today' : ''}`}>{day.date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</span>
+                          <span className="forecast-day-date">{day.date.getDate()}</span>
+                          {day.inRange && <span className="forecast-day-score">{day.score}</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Location search */}
+              {activeTab === 'weather' && (
+                <>
+                  <div className="input-section">
+                    <div className="location-input">
+                      <label>ZIP Code or Coordinates</label>
+                      <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="e.g., 78701 or 30.2672, -97.7431" onKeyPress={(e) => e.key === 'Enter' && fetchWeather()} />
+                    </div>
+                    <div className="action-buttons">
+                      <button className="primary-button" onClick={fetchWeather} disabled={loading}>{loading ? 'Loading...' : 'Get Forecast'}</button>
+                    </div>
+                  </div>
+
+                  {showSaveDialog && (
+                    <div className="save-dialog">
+                      <input type="text" placeholder="Location name" value={locationName} onChange={(e) => setLocationName(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && saveCurrentLocation()} />
+                      <div className="save-dialog-buttons">
+                        <button onClick={saveCurrentLocation}>Save</button>
+                        <button onClick={() => setShowSaveDialog(false)}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Dashboard: Location + Conditions cards */}
+              {coords && weather && moon && astropheric && activeTab === 'weather' && (
+                <>
+                  <div className="dashboard-grid">
+                    {/* Location Card */}
+                    <div className="dash-card">
+                      <div className="dash-card-header">
+                        <span className="dash-card-title">LOCATION</span>
+                        <button className="dash-add-link" onClick={() => setShowSaveDialog(true)}>+ Add</button>
+                      </div>
+                      {savedLocations.length > 0 ? (
+                        <div className="location-list">
+                          {savedLocations.map(loc => {
+                            const isActive = coords?.locationName === loc.name
+                            return (
+                              <div key={loc.id} className={`location-item ${isActive ? 'active' : ''}`} onClick={() => loadSavedLocation(loc)}>
+                                <div className={`location-dot ${isActive ? 'active' : ''}`}></div>
+                                <div className="location-item-info">
+                                  <span className="location-item-name">{loc.name}</span>
+                                  <span className="location-item-coords">{loc.latitude.toFixed(2)}°, {loc.longitude.toFixed(2)}°</span>
+                                </div>
+                                <button className="delete-button" onClick={(e) => { e.stopPropagation(); deleteLocation(loc.id) }} title="Delete">&times;</button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="empty-hint">
+                          <p>{coords.locationName}</p>
+                          <p className="hint-sub">{coords.latitude.toFixed(4)}°, {coords.longitude.toFixed(4)}°</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Conditions Card */}
+                    <div className="dash-card">
+                      <div className="dash-card-header">
+                        <span className="dash-card-title">TONIGHT&apos;S CONDITIONS</span>
+                      </div>
+                      <div className="conditions-tiles">
+                        <div className="condition-tile">
+                          <span className="tile-label">SEEING</span>
+                          <span className="tile-value" style={{color: getSeeingColor(astropheric.Astrospheric_Seeing[0].Value.ActualValue)}}>{astropheric.Astrospheric_Seeing[0].Value.ActualValue}/5</span>
+                          <span className="tile-sub">{getSeeingDescription(astropheric.Astrospheric_Seeing[0].Value.ActualValue)}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${astropheric.Astrospheric_Seeing[0].Value.ActualValue * 20}%`, background: getSeeingColor(astropheric.Astrospheric_Seeing[0].Value.ActualValue)}}></div></div>
+                        </div>
+                        <div className="condition-tile">
+                          <span className="tile-label">TRANSPARENCY</span>
+                          <span className="tile-value" style={{color: getTransparencyColor(astropheric.Astrospheric_Transparency[0].Value.ActualValue)}}>{getTransparencyDescription(astropheric.Astrospheric_Transparency[0].Value.ActualValue)}</span>
+                          <span className="tile-sub">{astropheric.Astrospheric_Transparency[0].Value.ActualValue}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.max(0, (30 - astropheric.Astrospheric_Transparency[0].Value.ActualValue) / 30 * 100)}%`, background: getTransparencyColor(astropheric.Astrospheric_Transparency[0].Value.ActualValue)}}></div></div>
+                        </div>
+                        <div className="condition-tile">
+                          <span className="tile-label">CLOUD COVER</span>
+                          <span className="tile-value" style={{color: getCloudColor(Math.round(astropheric.RDPS_CloudCover[0].Value.ActualValue))}}>{Math.round(astropheric.RDPS_CloudCover[0].Value.ActualValue)}%</span>
+                          <span className="tile-sub">{getCloudDescription(astropheric.RDPS_CloudCover[0].Value.ActualValue)}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${100 - astropheric.RDPS_CloudCover[0].Value.ActualValue}%`, background: getCloudColor(Math.round(astropheric.RDPS_CloudCover[0].Value.ActualValue))}}></div></div>
+                        </div>
+                        <div className="condition-tile">
+                          <span className="tile-label">WIND</span>
+                          <span className="tile-value" style={{color: getWindColor(currentWind)}}>{currentWind} mph</span>
+                          <span className="tile-sub">{currentWindDir}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.max(0, (30 - Math.min(currentWind, 30)) / 30 * 100)}%`, background: getWindColor(currentWind)}}></div></div>
+                        </div>
+                        <div className="condition-tile">
+                          <span className="tile-label">MOON</span>
+                          <span className="tile-value" style={{color: getMoonColor(moon.illumination)}}>{moon.illumination}%</span>
+                          <span className="tile-sub">{moon.emoji} {moon.phase}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${100 - moon.illumination}%`, background: getMoonColor(moon.illumination)}}></div></div>
+                        </div>
+                        <div className="condition-tile">
+                          <span className="tile-label">DEW RISK</span>
+                          <span className="tile-value" style={{color: getDewRiskColor(currentDewDelta)}}>{getDewRiskDescription(currentDewDelta)}</span>
+                          <span className="tile-sub">&Delta;{currentDewDelta}°F</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.min(currentDewDelta, 25) / 25 * 100}%`, background: getDewRiskColor(currentDewDelta)}}></div></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CTA Row */}
+                  <div className="cta-row">
+                    <button className="cta-primary" onClick={() => setActiveTab('plan')}>Plan Tonight&apos;s Session &rarr;</button>
+                    <button className="cta-secondary" onClick={() => setActiveTab('forecast')}>View Full Forecast</button>
+                  </div>
+
+                  {/* Gear toggle */}
+                  <button className="gear-button-wide" onClick={() => setActiveTab('gear')}>Gear Manager</button>
+                </>
+              )}
+
+              {/* Saved locations (before data loads) */}
+              {!coords && savedLocations.length > 0 && activeTab === 'weather' && (
                 <div className="saved-locations">
-                  <h3>📍 Saved Locations</h3>
+                  <h3>Saved Locations</h3>
                   <div className="location-buttons">
                     {savedLocations.map(loc => (
                       <div key={loc.id} className="location-card">
@@ -565,255 +812,142 @@ function App() {
                           <span className="location-name">{loc.name}</span>
                           <span className="location-coords">{loc.latitude.toFixed(2)}°, {loc.longitude.toFixed(2)}°</span>
                         </button>
-                        <button className="delete-button" onClick={(e) => { e.stopPropagation(); deleteLocation(loc.id) }} title="Delete">×</button>
+                        <button className="delete-button" onClick={(e) => { e.stopPropagation(); deleteLocation(loc.id) }} title="Delete">&times;</button>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="input-section">
-                <div className="location-input">
-                  <label>ZIP Code or Coordinates:</label>
-                  <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="e.g., 78701 or 30.2672, -97.7431" onKeyPress={(e) => e.key === 'Enter' && fetchWeather()} />
-                </div>
-                <div className="action-buttons">
-                  <button className="primary-button" onClick={fetchWeather} disabled={loading}>{loading ? 'Loading...' : 'Get Forecast'}</button>
-                  {coords && !showSaveDialog && <button className="secondary-button" onClick={() => setShowSaveDialog(true)}>💾 Save Location</button>}
-                </div>
-              </div>
+              {/* Sub-view: back button */}
+              {['plan', 'log', 'forecast', 'gear'].includes(activeTab) && (
+                <button className="back-link" onClick={() => setActiveTab('weather')}>&larr; Back to Dashboard</button>
+              )}
 
-              {showSaveDialog && (
-                <div className="save-dialog">
-                  <input type="text" placeholder="Location name" value={locationName} onChange={(e) => setLocationName(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && saveCurrentLocation()} />
-                  <div className="save-dialog-buttons">
-                    <button onClick={saveCurrentLocation}>Save</button>
-                    <button onClick={() => setShowSaveDialog(false)}>Cancel</button>
+              {/* Full Forecast Table */}
+              {activeTab === 'forecast' && coords && weather && moon && astropheric && (
+                <div className="tab-content">
+                  <div className="forecast-table-section">
+                    <h3>81-Hour Forecast</h3>
+                    <div className={`table-container-wrapper ${isScrolledRight ? 'scrolled-right' : ''}`}>
+                      <div className="table-container" ref={tableContainerRef} onScroll={handleTableScroll}>
+                        <table>
+                          <thead><tr><th>Hour</th><th>Clouds</th><th>Seeing</th><th>Transp</th><th>Temp</th><th>Dew</th><th>&Delta;Dew</th><th>Wind</th></tr></thead>
+                          <tbody>
+                            {astropheric.RDPS_CloudCover.map((_, i) => {
+                              const startTime = new Date(astropheric.LocalStartTime)
+                              const hourTime = new Date(startTime.getTime() + i * 60 * 60 * 1000)
+                              const timeStr = hourTime.toLocaleTimeString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true })
+                              const clouds = Math.round(astropheric.RDPS_CloudCover[i].Value.ActualValue)
+                              const seeing = astropheric.Astrospheric_Seeing[i].Value.ActualValue
+                              const transparency = astropheric.Astrospheric_Transparency[i].Value.ActualValue
+                              const temp = kelvinToFahrenheit(astropheric.RDPS_Temperature[i].Value.ActualValue)
+                              const dewPoint = kelvinToFahrenheit(astropheric.RDPS_DewPoint[i].Value.ActualValue)
+                              const dewDelta = temp - dewPoint
+                              const windSpeed = Math.round(astropheric.RDPS_WindVelocity[i].Value.ActualValue * 2.237)
+                              const windDir = Math.round(astropheric.RDPS_WindDirection[i].Value.ActualValue)
+                              const rowClass = clouds < 30 && seeing >= 3 && transparency <= 13 ? 'excellent' : clouds < 50 && seeing >= 2 ? 'good' : clouds < 70 ? 'ok' : 'poor'
+                              return (
+                                <tr key={i} className={rowClass}>
+                                  <td className="time-cell">{timeStr}</td>
+                                  <td style={{color: getCloudColor(clouds)}}>{clouds}%</td>
+                                  <td style={{color: getSeeingColor(seeing)}}>{seeing}/5</td>
+                                  <td style={{color: getTransparencyColor(transparency)}}>{transparency}</td>
+                                  <td>{temp}°F</td>
+                                  <td>{dewPoint}°F</td>
+                                  <td style={{color: getDewRiskColor(dewDelta)}}>&Delta;{dewDelta}°</td>
+                                  <td style={{color: getWindColor(windSpeed)}}>{windSpeed} mph {getWindDirection(windDir)}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <span className="scroll-hint">Swipe left to see more columns</span>
                   </div>
                 </div>
               )}
 
-              <button
-                className={`gear-button-wide ${activeTab === 'gear' ? 'active' : ''}`}
-                onClick={() => setActiveTab(activeTab === 'gear' ? 'weather' : 'gear')}
-              >
-                Gear Manager
-              </button>
-
-              {coords && weather && moon && astropheric && activeTab !== 'gear' && (
-                <div className="tab-navigation">
-                  <button className={`tab-button ${activeTab === 'weather' ? 'active' : ''}`} onClick={() => setActiveTab('weather')}>Weather</button>
-                  <button className={`tab-button ${activeTab === 'targets' ? 'active' : ''}`} onClick={() => setActiveTab('targets')}>Targets {targets.length > 0 && <span className="tab-badge">{targets.length}</span>}</button>
-                  <button className={`tab-button ${activeTab === 'plan' ? 'active' : ''}`} onClick={() => setActiveTab('plan')}>Plan {selectedTargets.length > 0 && <span className="tab-badge">{selectedTargets.length}</span>}</button>
-                  <button className={`tab-button ${activeTab === 'log' ? 'active' : ''}`} onClick={() => setActiveTab('log')}>Log {logEntries.length > 0 && <span className="tab-badge">{logEntries.length}</span>}</button>
-                </div>
-              )}
-
-              {coords && weather && moon && astropheric && (
-                <>
-                  {activeTab === 'weather' && (
-                    <div className="tab-content">
-                      <div className="summary-cards">
-                        <div className="summary-card"><div className="card-icon">📍</div><div className="card-content"><div className="card-label">Location</div><div className="card-value-small">{coords.locationName}</div><div className="card-subvalue">{coords.latitude.toFixed(4)}°, {coords.longitude.toFixed(4)}°</div></div></div>
-                        <div className="summary-card"><div className="card-icon">🌙</div><div className="card-content"><div className="card-label">Moon</div><div className="card-value">{moon.emoji} {moon.phase}</div><div className="card-subvalue" style={{color: getMoonColor(moon.illumination)}}>{moon.illumination}% Illuminated</div></div></div>
-                        <div className="summary-card"><div className="card-icon">👁️</div><div className="card-content"><div className="card-label">Seeing</div><div className="card-value">{getSeeingDescription(astropheric.Astrospheric_Seeing[0].Value.ActualValue)}</div><div className="card-subvalue">{astropheric.Astrospheric_Seeing[0].Value.ActualValue}/5</div></div></div>
-                        <div className="summary-card"><div className="card-icon">🔭</div><div className="card-content"><div className="card-label">Transparency</div><div className="card-value">{getTransparencyDescription(astropheric.Astrospheric_Transparency[0].Value.ActualValue)}</div><div className="card-subvalue">{astropheric.Astrospheric_Transparency[0].Value.ActualValue}</div></div></div>
-                        <div className="summary-card"><div className="card-icon">☁️</div><div className="card-content"><div className="card-label">Clouds</div><div className="card-value">{Math.round(astropheric.RDPS_CloudCover[0].Value.ActualValue)}%</div><div className="card-subvalue">{getCloudDescription(astropheric.RDPS_CloudCover[0].Value.ActualValue)}</div></div></div>
-                        <div className="summary-card"><div className="card-icon">💧</div><div className="card-content"><div className="card-label">Dew Risk</div><div className="card-value" style={{color: getDewRiskColor(currentDewDelta)}}>{getDewRiskDescription(currentDewDelta)}</div><div className="card-subvalue">Δ{currentDewDelta}°F</div></div></div>
-                      </div>
-                      <div className="forecast-table-section">
-                        <h3>81-Hour Forecast</h3>
-                        <div className={`table-container-wrapper ${isScrolledRight ? 'scrolled-right' : ''}`}>
-                          <div
-                            className="table-container"
-                            ref={tableContainerRef}
-                            onScroll={handleTableScroll}
-                          >
-                            <table>
-                              <thead><tr><th>Hour</th><th>Clouds</th><th>Seeing</th><th>Transp</th><th>Temp</th><th>Dew</th><th>ΔDew</th><th>Wind</th></tr></thead>
-                              <tbody>
-                                {astropheric.RDPS_CloudCover.map((_, i) => {
-                                  const startTime = new Date(astropheric.LocalStartTime)
-                                  const hourTime = new Date(startTime.getTime() + i * 60 * 60 * 1000)
-                                  const timeStr = hourTime.toLocaleTimeString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true })
-                                  const clouds = Math.round(astropheric.RDPS_CloudCover[i].Value.ActualValue)
-                                  const seeing = astropheric.Astrospheric_Seeing[i].Value.ActualValue
-                                  const transparency = astropheric.Astrospheric_Transparency[i].Value.ActualValue
-                                  const temp = kelvinToFahrenheit(astropheric.RDPS_Temperature[i].Value.ActualValue)
-                                  const dewPoint = kelvinToFahrenheit(astropheric.RDPS_DewPoint[i].Value.ActualValue)
-                                  const dewDelta = temp - dewPoint
-                                  const windSpeed = Math.round(astropheric.RDPS_WindVelocity[i].Value.ActualValue * 2.237)
-                                  const windDir = Math.round(astropheric.RDPS_WindDirection[i].Value.ActualValue)
-                                  const rowClass = clouds < 30 && seeing >= 3 && transparency <= 13 ? 'excellent' : clouds < 50 && seeing >= 2 ? 'good' : clouds < 70 ? 'ok' : 'poor'
-                                  return (
-                                    <tr key={i} className={rowClass}>
-                                      <td className="time-cell">{timeStr}</td>
-                                      <td style={{color: getCloudColor(clouds)}}>{clouds}%</td>
-                                      <td style={{color: astropheric.Astrospheric_Seeing[i].Value.ValueColor}}>{seeing}/5</td>
-                                      <td style={{color: astropheric.Astrospheric_Transparency[i].Value.ValueColor}}>{transparency}</td>
-                                      <td>{temp}°F</td>
-                                      <td>{dewPoint}°F</td>
-                                      <td style={{color: getDewRiskColor(dewDelta)}}>Δ{dewDelta}°</td>
-                                      <td style={{color: getWindColor(windSpeed)}}>{windSpeed} mph {getWindDirection(windDir)}</td>
-                                    </tr>
-                                  )
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                        <span className="scroll-hint">Swipe left to see more columns</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'targets' && (
-                    <div className="tab-content">
-                      <div className="targets-section">
-                        <div className="targets-header">
-                          <h3>🎯 Recommended Targets</h3>
-                          <button className="filter-toggle" onClick={() => setShowTargetFilters(!showTargetFilters)}>{showTargetFilters ? 'Hide Filters' : 'Filters'}</button>
-                        </div>
-                        {showTargetFilters && (
-                          <div className="target-filters">
-                            <div className="filter-group">
-                              <label>Filter by Gear (score ≥{GEAR_MATCH_THRESHOLD}):</label>
-                              <select value={targetFilters.gearSetup || ''} onChange={(e) => setTargetFilters(prev => ({ ...prev, gearSetup: e.target.value || null }))}>
-                                <option value="">All Gear</option>
-                                {IMAGING_SETUPS.map(setup => (<option key={setup.id} value={setup.id}>{setup.name}</option>))}
-                              </select>
-                            </div>
-                            <div className="filter-group">
-                              <label>Type:</label>
-                              <div className="filter-chips">{Object.values(TARGET_TYPES).map(type => (<button key={type} className={`filter-chip ${targetFilters.types.includes(type) ? 'active' : ''}`} onClick={() => toggleTypeFilter(type)}>{type}</button>))}</div>
-                            </div>
-                            <div className="filter-group">
-                              <label>Recommended Focal Length:</label>
-                              <select value={targetFilters.focalLength || ''} onChange={(e) => setTargetFilters(prev => ({ ...prev, focalLength: e.target.value || null }))}><option value="">All</option>{Object.values(FOCAL_LENGTH).map(fl => (<option key={fl} value={fl}>{fl}</option>))}</select>
-                            </div>
-                            <div className="filter-group">
-                              <label>Min Visibility Score: {targetFilters.minScore}</label>
-                              <input type="range" min="0" max="80" value={targetFilters.minScore} onChange={(e) => setTargetFilters(prev => ({ ...prev, minScore: parseInt(e.target.value) }))} />
-                            </div>
-                          </div>
-                        )}
-                        <div className="targets-count">
-                          Showing {targets.length} of {DSO_DATABASE.length} targets
-                          {targetFilters.gearSetup && <span className="gear-filter-badge"> for {IMAGING_SETUPS.find(s => s.id === targetFilters.gearSetup)?.name}</span>}
-                          {selectedTargets.length > 0 && <span className="selected-count"> • {selectedTargets.length} selected</span>}
-                        </div>
-                        <div className="targets-grid">
-                          {targets.slice(0, 30).map((item) => {
-                            const { target, score, gearScore, bestSetup, currentAltitude, currentAzimuth, moonSeparation, hoursAbove30, isGoodMonth } = item
-                            const isSelected = isTargetSelected(target.id)
-                            const lastImaged = getLastImaged(target.id)
-                            return (
-                              <div key={target.id} className={`target-card ${isGoodMonth ? 'in-season' : ''} ${isSelected ? 'selected' : ''}`} onClick={() => toggleTargetSelection(item)}>
-                                <div className="target-select-indicator">{isSelected ? '✓' : '+'}</div>
-                                <div className="target-header">
-                                  <div className="target-name">{target.name}</div>
-                                  <div className="target-scores">
-                                    <div className="score-badge" style={{ background: getScoreColor(score) }} title="Visibility">{score}</div>
-                                    <div className="score-badge gear-score" style={{ background: getScoreColor(gearScore) }} title="Gear">🔧{gearScore}</div>
-                                  </div>
-                                </div>
-                                <div className="target-type-line"><span className="target-type">{target.type}</span><span className="target-constellation">{target.constellation}</span></div>
-                                <div className="target-details">
-                                  <div className="target-detail"><span className="detail-label">Alt</span><span className="detail-value" style={{ color: currentAltitude > 30 ? '#4ade80' : currentAltitude > 15 ? '#ffd60a' : '#ff5400' }}>{Math.round(currentAltitude)}°</span></div>
-                                  <div className="target-detail"><span className="detail-label">Az</span><span className="detail-value">{getCardinalDirection(currentAzimuth)}</span></div>
-                                  <div className="target-detail"><span className="detail-label">🌙</span><span className="detail-value" style={{ color: getMoonSeparationColor(moonSeparation) }}>{Math.round(moonSeparation)}°</span></div>
-                                  <div className="target-detail"><span className="detail-label">Hrs</span><span className="detail-value">{hoursAbove30.toFixed(1)}</span></div>
-                                </div>
-                                <div className="target-meta"><span className="target-size">{target.size.width}' × {target.size.height}'</span><span className="target-mag">mag {target.magnitude}</span></div>
-                                {bestSetup && <div className="target-best-setup">Best: {bestSetup.setup.name} ({bestSetup.fovFit.fillPercent.toFixed(0)}% fill)</div>}
-                                {lastImaged && <div className="target-last-imaged">📸 Last imaged: {formatLastImaged(lastImaged)}</div>}
-                                {target.description && <div className="target-description">{target.description}</div>}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'plan' && (
-                    <div className="tab-content">
-                      <div className="plan-section">
-                        <div className="plan-header">
-                          <h3>📋 Tonight's Plan</h3>
-                          <div className="plan-header-actions">
-                            {selectedTargets.length > 0 && (
-                              <>
-                                <button className="save-plan-button" onClick={() => setShowSavePlanModal(true)}>💾 Save Plan</button>
-                                <button className="clear-plan-button" onClick={clearAllSelected}>Clear All</button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="active-setups-section">
-                          <label>Active Gear Tonight:</label>
-                          <div className="setup-toggles">
-                            {IMAGING_SETUPS.map(setup => (
-                              <button key={setup.id} className={`setup-toggle ${activeSetups.includes(setup.id) ? 'active' : ''}`} onClick={() => toggleActiveSetup(setup.id)}>{setup.name}</button>
-                            ))}
-                          </div>
-                          {activeSetups.length === 0 && <p className="setup-hint">Select the gear you're using tonight to group targets by setup</p>}
-                        </div>
-
-                        {selectedTargets.length === 0 ? (
-                          <div className="empty-plan"><p>No targets selected.</p><p>Go to <strong>Targets</strong> tab and click targets to add them.</p></div>
-                        ) : (
+              {/* Plan sub-view */}
+              {activeTab === 'plan' && coords && weather && moon && astropheric && (
+                <div className="tab-content">
+                  <div className="plan-section">
+                    <div className="plan-header">
+                      <h3>Tonight&apos;s Plan</h3>
+                      <div className="plan-header-actions">
+                        {selectedTargets.length > 0 && (
                           <>
-                            <div className="plan-summary"><p>{selectedTargets.length} target{selectedTargets.length !== 1 ? 's' : ''} selected</p></div>
-                            {Object.values(getGroupedPlan()).map(group => (
-                              <div key={group.setupId} className="plan-group">
-                                <div className="plan-group-header">
-                                  <span className="plan-group-name">📷 {group.setupName}</span>
-                                  <span className="plan-group-count">{group.targets.length} target{group.targets.length !== 1 ? 's' : ''}</span>
-                                </div>
-                                <div className="plan-list">
-                                  {group.targets.map((item) => (
-                                    <div key={item.id} className="plan-item">
-                                      <div className="plan-item-priority"><input type="number" min="1" max={selectedTargets.length} value={item.priority} onChange={(e) => updateTargetPriority(item.id, parseInt(e.target.value) || 1)} className="priority-input" /></div>
-                                      <div className="plan-item-content">
-                                        <div className="plan-item-header"><span className="plan-item-name">{item.target.name}</span><span className="plan-item-type">{item.target.type}</span></div>
-                                        <div className="plan-item-details">
-                                          <div className="plan-detail"><span className="plan-label">Transit:</span><span className="plan-value">{item.transit ? formatTimeShort(item.transit) : 'N/A'}</span></div>
-                                          <div className="plan-detail"><span className="plan-label">Hrs&gt;30°:</span><span className="plan-value">{item.hoursAbove30?.toFixed(1) || '--'}</span></div>
-                                          <div className="plan-detail"><span className="plan-label">Moon:</span><span className="plan-value" style={{ color: getMoonSeparationColor(item.moonSeparation) }}>{Math.round(item.moonSeparation || 0)}°</span></div>
-                                          <div className="plan-detail"><span className="plan-label">Vis:</span><span className="plan-value" style={{ color: getScoreColor(item.score) }}>{item.score}</span></div>
-                                          <div className="plan-detail"><span className="plan-label">Gear:</span><span className="plan-value" style={{ color: getScoreColor(item.assignedSetup?.combinedScore || item.gearScore) }}>{item.assignedSetup?.combinedScore || item.gearScore}</span></div>
-                                        </div>
-                                        {item.assignedSetup && <div className="plan-item-setup">{item.assignedSetup.fovFit.rating} • {item.assignedSetup.fovFit.fillPercent.toFixed(0)}% FOV fill</div>}
-                                      </div>
-                                      <button className="remove-item-button" onClick={() => removeSelectedTarget(item.id)} title="Remove">×</button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
+                            <button className="save-plan-button" onClick={() => setShowSavePlanModal(true)}>Save Plan</button>
+                            <button className="clear-plan-button" onClick={clearAllSelected}>Clear All</button>
                           </>
                         )}
                       </div>
                     </div>
-                  )}
 
-                  {activeTab === 'log' && (
-                    <div className="tab-content">
-                      <ImagingLog
-                        coords={coords}
-                        savedLocations={savedLocations}
-                        astropheric={astropheric}
-                        moon={moon}
-                        logEntries={logEntries}
-                        setLogEntries={setLogEntries}
-                      />
+                    <div className="active-setups-section">
+                      <label>Active Gear Tonight:</label>
+                      <div className="setup-toggles">
+                        {IMAGING_SETUPS.map(setup => (
+                          <button key={setup.id} className={`setup-toggle ${activeSetups.includes(setup.id) ? 'active' : ''}`} onClick={() => toggleActiveSetup(setup.id)}>{setup.name}</button>
+                        ))}
+                      </div>
+                      {activeSetups.length === 0 && <p className="setup-hint">Select the gear you&apos;re using tonight to group targets by setup</p>}
                     </div>
-                  )}
-                </>
+
+                    {selectedTargets.length === 0 ? (
+                      <div className="empty-plan"><p>No targets selected.</p><p>Go to <strong>Targets</strong> tab and click targets to add them.</p></div>
+                    ) : (
+                      <>
+                        <div className="plan-summary"><p>{selectedTargets.length} target{selectedTargets.length !== 1 ? 's' : ''} selected</p></div>
+                        {Object.values(getGroupedPlan()).map(group => (
+                          <div key={group.setupId} className="plan-group">
+                            <div className="plan-group-header">
+                              <span className="plan-group-name">{group.setupName}</span>
+                              <span className="plan-group-count">{group.targets.length} target{group.targets.length !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="plan-list">
+                              {group.targets.map((item) => (
+                                <div key={item.id} className="plan-item">
+                                  <div className="plan-item-priority"><input type="number" min="1" max={selectedTargets.length} value={item.priority} onChange={(e) => updateTargetPriority(item.id, parseInt(e.target.value) || 1)} className="priority-input" /></div>
+                                  <div className="plan-item-content">
+                                    <div className="plan-item-header"><span className="plan-item-name">{item.target.name}</span><span className="plan-item-type">{item.target.type}</span></div>
+                                    <div className="plan-item-details">
+                                      <div className="plan-detail"><span className="plan-label">Transit:</span><span className="plan-value">{item.transit ? formatTimeShort(item.transit) : 'N/A'}</span></div>
+                                      <div className="plan-detail"><span className="plan-label">Hrs&gt;30°:</span><span className="plan-value">{item.hoursAbove30?.toFixed(1) || '--'}</span></div>
+                                      <div className="plan-detail"><span className="plan-label">Moon:</span><span className="plan-value" style={{ color: getMoonSeparationColor(item.moonSeparation) }}>{Math.round(item.moonSeparation || 0)}°</span></div>
+                                      <div className="plan-detail"><span className="plan-label">Vis:</span><span className="plan-value" style={{ color: getScoreColor(item.score) }}>{item.score}</span></div>
+                                      <div className="plan-detail"><span className="plan-label">Gear:</span><span className="plan-value" style={{ color: getScoreColor(item.assignedSetup?.combinedScore || item.gearScore) }}>{item.assignedSetup?.combinedScore || item.gearScore}</span></div>
+                                    </div>
+                                    {item.assignedSetup && <div className="plan-item-setup">{item.assignedSetup.fovFit.rating} &bull; {item.assignedSetup.fovFit.fillPercent.toFixed(0)}% FOV fill</div>}
+                                  </div>
+                                  <button className="remove-item-button" onClick={() => removeSelectedTarget(item.id)} title="Remove">&times;</button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
               )}
 
+              {/* Log sub-view */}
+              {activeTab === 'log' && (
+                <div className="tab-content">
+                  <ImagingLog
+                    coords={coords}
+                    savedLocations={savedLocations}
+                    astropheric={astropheric}
+                    moon={moon}
+                    logEntries={logEntries}
+                    setLogEntries={setLogEntries}
+                  />
+                </div>
+              )}
+
+              {/* Gear sub-view */}
               {activeTab === 'gear' && (
                 <div className="tab-content">
                   <GearEditor customGear={customGear} setCustomGear={setCustomGear} />
