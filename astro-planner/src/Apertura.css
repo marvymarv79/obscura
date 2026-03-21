@@ -74,17 +74,6 @@
   color: var(--accent-crimson);
 }
 
-.apt-nav-back {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.apt-nav-back:hover {
-  color: var(--text-secondary);
-}
-
 .apt-nav-center {
   display: flex;
   gap: 0.25rem;
@@ -183,7 +172,4 @@
     padding: 0.4rem 0.65rem;
   }
 
-  .apt-nav-back {
-    display: none;
-  }
 }

@@ -84,6 +84,17 @@ body {
   gap: 0.5rem;
 }
 
+.nav-hub-link {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.nav-hub-link:hover {
+  color: var(--text-secondary);
+}
+
 .nav-logo-icon {
   color: var(--accent-ember);
 }

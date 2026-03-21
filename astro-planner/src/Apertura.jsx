@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   SignedIn,
   SignedOut,
@@ -37,6 +37,7 @@ function Apertura() {
       <SignedIn>
         <nav className="apt-top-nav">
           <div className="apt-nav-left">
+            <Link to="/" className="nav-hub-link">&larr; Hub</Link>
             <a className="apt-nav-home" onClick={() => navigate('/')}>
               <svg className="apt-nav-logo-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -45,7 +46,6 @@ function Apertura() {
               </svg>
               <span className="apt-nav-wordmark">Aper<span className="apt-nav-accent">tura</span></span>
             </a>
-            <span className="apt-nav-back" onClick={() => navigate('/')}>&larr; All Tools</span>
           </div>
           <div className="apt-nav-center">
             {TABS.map(tab => (
