@@ -385,6 +385,7 @@ function Apertura() {
     // Auto-skip filter wheel for OSC cameras
     if (WIZARD_STEPS[nextStep]?.key === 'filterwheel' && wizardSelections.camera?.sensor_type === 'OSC') {
       setWizardSelections(prev => ({ ...prev, filterwheel: null, filterset: null }))
+      showToast('Filter wheel skipped — not needed for OSC cameras')
       setWizardStep(nextStep + 1)
       return
     }
