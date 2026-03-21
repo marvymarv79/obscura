@@ -20,6 +20,7 @@ import {
   IMAGING_SETUPS,
   calculateGearCompatibility
 } from './gearconfig'
+import { buildForecastDays } from './nightScore'
 import ImagingLog from './imaginglog'
 import GearEditor from './GearEditor'
 import PlansHistory from './components/PlansHistory'
@@ -244,6 +245,83 @@ function App() {
     setActiveSetups(prev => prev.includes(setupId) ? prev.filter(id => id !== setupId) : [...prev, setupId])
   }
 
+  const FORECAST_CACHE_TTL = 3 * 60 * 60 * 1000 // 3 hours
+  const MOON_CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
+
+  const cacheKey = (prefix, lat, lng, extra) => {
+    const key = `${prefix}_${parseFloat(lat).toFixed(2)}_${parseFloat(lng).toFixed(2)}${extra ? '_' + extra : ''}`
+    return key
+  }
+
+  const getCachedForecast = (lat, lng) => {
+    try {
+      const key = cacheKey('forecast', lat, lng)
+      const cached = localStorage.getItem(key)
+      if (!cached) return null
+      const { data, timestamp } = JSON.parse(cached)
+      if (Date.now() - timestamp > FORECAST_CACHE_TTL) { localStorage.removeItem(key); return null }
+      return data
+    } catch (e) { console.warn('[cache] forecast read failed:', e); return null }
+  }
+
+  const setCachedForecast = (lat, lng, data) => {
+    try {
+      const key = cacheKey('forecast', lat, lng)
+      localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
+      console.log('[cache] wrote forecast:', key)
+    } catch (e) { console.warn('[cache] forecast write failed:', e) }
+  }
+
+  const getCachedMoon = (lat, lng, dateStr) => {
+    try {
+      const key = cacheKey('moon', lat, lng, dateStr)
+      const cached = localStorage.getItem(key)
+      if (!cached) return null
+      const { data, timestamp } = JSON.parse(cached)
+      if (Date.now() - timestamp > MOON_CACHE_TTL) { localStorage.removeItem(key); return null }
+      return data
+    } catch (e) { console.warn('[cache] moon read failed:', e); return null }
+  }
+
+  const setCachedMoon = (lat, lng, dateStr, data) => {
+    try {
+      const key = cacheKey('moon', lat, lng, dateStr)
+      localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
+      console.log('[cache] wrote moon:', key)
+    } catch (e) { console.warn('[cache] moon write failed:', e) }
+  }
+
+  const fetchForecastData = async (latitude, longitude) => {
+    const cached = getCachedForecast(latitude, longitude)
+    if (cached) {
+      console.log('[cache] forecast HIT for', latitude.toFixed(2), longitude.toFixed(2))
+      setAstropheric(cached)
+    } else {
+      console.log('[cache] forecast MISS for', latitude.toFixed(2), longitude.toFixed(2))
+      const astrophericResponse = await fetch(`/api/astropheric?lat=${latitude}&lon=${longitude}`)
+      if (astrophericResponse.ok) {
+        const astroData = await astrophericResponse.json()
+        setAstropheric(astroData.data)
+        setCachedForecast(latitude, longitude, astroData.data)
+      }
+    }
+  }
+
+  const fetchMoonData = async (latitude, longitude) => {
+    const dateStr = new Date().toISOString().split('T')[0]
+    const cached = getCachedMoon(latitude, longitude, dateStr)
+    if (cached) {
+      console.log('[cache] moon HIT for', latitude.toFixed(2), longitude.toFixed(2), dateStr)
+      setMoon(cached)
+    } else {
+      console.log('[cache] moon MISS for', latitude.toFixed(2), longitude.toFixed(2), dateStr)
+      const moonResponse = await fetch(`/api/moon?lat=${latitude}&lon=${longitude}`)
+      const moonData = await moonResponse.json()
+      setMoon(moonData)
+      setCachedMoon(latitude, longitude, dateStr, moonData)
+    }
+  }
+
   const fetchWeather = async () => {
     if (!zipCode) return
     setLoading(true)
@@ -257,20 +335,15 @@ function App() {
       const locationData = await locationResponse.json()
       const { latitude, longitude, locationName } = locationData
       setCoords({ latitude, longitude, locationName })
+      setSelectedDay(0)
 
-      const astrophericResponse = await fetch(`/api/astropheric?lat=${latitude}&lon=${longitude}`)
-      if (astrophericResponse.ok) {
-        const astroData = await astrophericResponse.json()
-        setAstropheric(astroData.data)
-      }
+      await fetchForecastData(latitude, longitude)
 
       const weatherResponse = await fetch(`/api/weather?lat=${latitude}&lon=${longitude}`)
       const weatherData = await weatherResponse.json()
       setWeather({ temperature: weatherData.current.temperature_2m, humidity: weatherData.current.relative_humidity_2m, cloudCover: weatherData.current.cloud_cover, windSpeed: weatherData.current.wind_speed_10m, windDirection: weatherData.current.wind_direction_10m })
 
-      const moonResponse = await fetch(`/api/moon?lat=${latitude}&lon=${longitude}`)
-      const moonData = await moonResponse.json()
-      setMoon(moonData)
+      await fetchMoonData(latitude, longitude)
     } catch (error) {
       alert('Error fetching data: ' + error.message)
     }
@@ -281,20 +354,15 @@ function App() {
     setLoading(true)
     try {
       setCoords({ latitude: location.latitude, longitude: location.longitude, locationName: location.name })
+      setSelectedDay(0)
 
-      const astrophericResponse = await fetch(`/api/astropheric?lat=${location.latitude}&lon=${location.longitude}`)
-      if (astrophericResponse.ok) {
-        const astroData = await astrophericResponse.json()
-        setAstropheric(astroData.data)
-      }
+      await fetchForecastData(location.latitude, location.longitude)
 
       const weatherResponse = await fetch(`/api/weather?lat=${location.latitude}&lon=${location.longitude}`)
       const weatherData = await weatherResponse.json()
       setWeather({ temperature: weatherData.current.temperature_2m, humidity: weatherData.current.relative_humidity_2m, cloudCover: weatherData.current.cloud_cover, windSpeed: weatherData.current.wind_speed_10m, windDirection: weatherData.current.wind_direction_10m })
 
-      const moonResponse = await fetch(`/api/moon?lat=${location.latitude}&lon=${location.longitude}`)
-      const moonData = await moonResponse.json()
-      setMoon(moonData)
+      await fetchMoonData(location.latitude, location.longitude)
     } catch (error) {
       alert('Error fetching data: ' + error.message)
     }
@@ -479,44 +547,29 @@ function App() {
   }
 
   const currentDewDelta = astropheric ? getDewRisk(astropheric.RDPS_Temperature[0].Value.ActualValue, astropheric.RDPS_DewPoint[0].Value.ActualValue) : null
+  // Note: currentDewDelta kept for backward compat; selectedConditions.dewDelta used in conditions card
 
-  const getForecastDays = () => {
-    if (!astropheric) return []
-    const startTime = new Date(astropheric.LocalStartTime)
-    const hours = astropheric.RDPS_CloudCover.length
-    const dayMap = {}
-    for (let i = 0; i < hours; i++) {
-      const hourTime = new Date(startTime.getTime() + i * 60 * 60 * 1000)
-      const dateKey = hourTime.toLocaleDateString('en-CA')
-      if (!dayMap[dateKey]) dayMap[dateKey] = []
-      dayMap[dateKey].push({
-        clouds: astropheric.RDPS_CloudCover[i].Value.ActualValue,
-        seeing: astropheric.Astrospheric_Seeing[i].Value.ActualValue,
-        transparency: astropheric.Astrospheric_Transparency[i].Value.ActualValue,
-      })
+  const forecastDays = buildForecastDays(astropheric, kelvinToFahrenheit)
+
+  // Get averaged conditions for the selected day's imaging window
+  const getSelectedDayConditions = () => {
+    const day = forecastDays[selectedDay]
+    if (!day || !day.inRange || day.hours.length === 0) return null
+    const hrs = day.hours
+    const avg = (arr, key) => arr.reduce((s, h) => s + h[key], 0) / arr.length
+    return {
+      seeing: +(avg(hrs, 'seeing').toFixed(1)),
+      clouds: Math.round(avg(hrs, 'clouds')),
+      transparency: +(avg(hrs, 'transparency').toFixed(1)),
+      wind: Math.round(avg(hrs, 'wind')),
+      windDir: getWindDirection(Math.round(avg(hrs, 'windDir'))),
+      dewDelta: Math.round(avg(hrs, 'dewDelta')),
     }
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const days = []
-    for (let d = 0; d < 7; d++) {
-      const dayDate = new Date(today.getTime() + d * 24 * 60 * 60 * 1000)
-      const dateKey = dayDate.toLocaleDateString('en-CA')
-      const hourData = dayMap[dateKey]
-      if (hourData && hourData.length > 0) {
-        const avgClouds = hourData.reduce((s, h) => s + h.clouds, 0) / hourData.length
-        const avgSeeing = hourData.reduce((s, h) => s + h.seeing, 0) / hourData.length
-        const avgTransp = hourData.reduce((s, h) => s + h.transparency, 0) / hourData.length
-        const score = Math.round((100 - avgClouds) * 0.4 + (avgSeeing / 5) * 100 * 0.3 + Math.max(0, 100 - avgTransp * 3.5) * 0.3)
-        days.push({ date: dayDate, score: Math.min(100, Math.max(0, score)), inRange: true })
-      } else {
-        days.push({ date: dayDate, score: null, inRange: false })
-      }
-    }
-    return days
   }
 
-  const currentWind = astropheric ? Math.round(astropheric.RDPS_WindVelocity[0].Value.ActualValue * 2.237) : null
-  const currentWindDir = astropheric ? getWindDirection(Math.round(astropheric.RDPS_WindDirection[0].Value.ActualValue)) : null
+  const selectedConditions = getSelectedDayConditions()
+  const currentWind = selectedConditions ? selectedConditions.wind : (astropheric ? Math.round(astropheric.RDPS_WindVelocity[0].Value.ActualValue * 2.237) : null)
+  const currentWindDir = selectedConditions ? selectedConditions.windDir : (astropheric ? getWindDirection(Math.round(astropheric.RDPS_WindDirection[0].Value.ActualValue)) : null)
 
   return (
     <div className="app">
@@ -670,14 +723,14 @@ function App() {
                     {coords && <span className="forecast-strip-location">{coords.locationName}</span>}
                   </div>
                   <div className="forecast-strip-days">
-                    {getForecastDays().map((day, i) => {
+                    {forecastDays.map((day, i) => {
                       const isToday = day.date.toDateString() === new Date().toDateString()
                       const scoreClass = day.inRange ? (day.score >= 70 ? 'score-good' : day.score >= 40 ? 'score-mid' : 'score-bad') : 'score-none'
                       return (
-                        <div key={i} className={`forecast-day ${scoreClass} ${selectedDay === i ? 'selected' : ''}`} onClick={() => setSelectedDay(i)}>
+                        <div key={i} className={`forecast-day ${scoreClass} ${selectedDay === i && day.inRange ? 'selected' : ''} ${!day.inRange ? 'out-of-range' : ''}`} onClick={day.inRange ? () => setSelectedDay(i) : undefined}>
                           <span className={`forecast-day-label ${isToday ? 'today' : ''}`}>{day.date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</span>
                           <span className="forecast-day-date">{day.date.getDate()}</span>
-                          {day.inRange && <span className="forecast-day-score">{day.score}</span>}
+                          <span className="forecast-day-score">{day.inRange ? day.score : '\u2014'}</span>
                         </div>
                       )
                     })}
@@ -747,26 +800,27 @@ function App() {
                     {/* Conditions Card */}
                     <div className="dash-card">
                       <div className="dash-card-header">
-                        <span className="dash-card-title">TONIGHT&apos;S CONDITIONS</span>
+                        <span className="dash-card-title">{selectedDay === 0 ? 'TONIGHT\u2019S CONDITIONS' : `${forecastDays[selectedDay]?.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()} NIGHT`}</span>
                       </div>
+                      {selectedConditions ? (
                       <div className="conditions-tiles">
                         <div className="condition-tile">
                           <span className="tile-label">SEEING</span>
-                          <span className="tile-value" style={{color: getSeeingColor(astropheric.Astrospheric_Seeing[0].Value.ActualValue)}}>{astropheric.Astrospheric_Seeing[0].Value.ActualValue}/5</span>
-                          <span className="tile-sub">{getSeeingDescription(astropheric.Astrospheric_Seeing[0].Value.ActualValue)}</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${astropheric.Astrospheric_Seeing[0].Value.ActualValue * 20}%`, background: getSeeingColor(astropheric.Astrospheric_Seeing[0].Value.ActualValue)}}></div></div>
+                          <span className="tile-value" style={{color: getSeeingColor(selectedConditions.seeing)}}>{selectedConditions.seeing}/5</span>
+                          <span className="tile-sub">{getSeeingDescription(selectedConditions.seeing)}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${selectedConditions.seeing * 20}%`, background: getSeeingColor(selectedConditions.seeing)}}></div></div>
                         </div>
                         <div className="condition-tile">
                           <span className="tile-label">TRANSPARENCY</span>
-                          <span className="tile-value" style={{color: getTransparencyColor(astropheric.Astrospheric_Transparency[0].Value.ActualValue)}}>{getTransparencyDescription(astropheric.Astrospheric_Transparency[0].Value.ActualValue)}</span>
-                          <span className="tile-sub">{astropheric.Astrospheric_Transparency[0].Value.ActualValue}</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.max(0, (30 - astropheric.Astrospheric_Transparency[0].Value.ActualValue) / 30 * 100)}%`, background: getTransparencyColor(astropheric.Astrospheric_Transparency[0].Value.ActualValue)}}></div></div>
+                          <span className="tile-value" style={{color: getTransparencyColor(selectedConditions.transparency)}}>{getTransparencyDescription(selectedConditions.transparency)}</span>
+                          <span className="tile-sub">{selectedConditions.transparency}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.max(0, (30 - selectedConditions.transparency) / 30 * 100)}%`, background: getTransparencyColor(selectedConditions.transparency)}}></div></div>
                         </div>
                         <div className="condition-tile">
                           <span className="tile-label">CLOUD COVER</span>
-                          <span className="tile-value" style={{color: getCloudColor(Math.round(astropheric.RDPS_CloudCover[0].Value.ActualValue))}}>{Math.round(astropheric.RDPS_CloudCover[0].Value.ActualValue)}%</span>
-                          <span className="tile-sub">{getCloudDescription(astropheric.RDPS_CloudCover[0].Value.ActualValue)}</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${100 - astropheric.RDPS_CloudCover[0].Value.ActualValue}%`, background: getCloudColor(Math.round(astropheric.RDPS_CloudCover[0].Value.ActualValue))}}></div></div>
+                          <span className="tile-value" style={{color: getCloudColor(selectedConditions.clouds)}}>{selectedConditions.clouds}%</span>
+                          <span className="tile-sub">{getCloudDescription(selectedConditions.clouds)}</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${100 - selectedConditions.clouds}%`, background: getCloudColor(selectedConditions.clouds)}}></div></div>
                         </div>
                         <div className="condition-tile">
                           <span className="tile-label">WIND</span>
@@ -782,11 +836,14 @@ function App() {
                         </div>
                         <div className="condition-tile">
                           <span className="tile-label">DEW RISK</span>
-                          <span className="tile-value" style={{color: getDewRiskColor(currentDewDelta)}}>{getDewRiskDescription(currentDewDelta)}</span>
-                          <span className="tile-sub">&Delta;{currentDewDelta}°F</span>
-                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.min(currentDewDelta, 25) / 25 * 100}%`, background: getDewRiskColor(currentDewDelta)}}></div></div>
+                          <span className="tile-value" style={{color: getDewRiskColor(selectedConditions.dewDelta)}}>{getDewRiskDescription(selectedConditions.dewDelta)}</span>
+                          <span className="tile-sub">&Delta;{selectedConditions.dewDelta}°F</span>
+                          <div className="tile-bar"><div className="tile-bar-fill" style={{width: `${Math.min(selectedConditions.dewDelta, 25) / 25 * 100}%`, background: getDewRiskColor(selectedConditions.dewDelta)}}></div></div>
                         </div>
                       </div>
+                      ) : (
+                      <div className="empty-hint"><p>No imaging window data available for this night.</p></div>
+                      )}
                     </div>
                   </div>
 
