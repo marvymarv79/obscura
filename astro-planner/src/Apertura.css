@@ -466,6 +466,41 @@
   background: rgba(204, 41, 54, 0.1);
 }
 
+.apt-confirm-delete {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.apt-confirm-yes {
+  background: rgba(204, 41, 54, 0.15);
+  border: 1px solid rgba(204, 41, 54, 0.3);
+  color: var(--accent-crimson);
+  font-size: 0.72rem;
+  font-weight: var(--font-heading);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.apt-confirm-yes:hover {
+  background: rgba(204, 41, 54, 0.25);
+}
+
+.apt-confirm-no {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.apt-confirm-no:hover {
+  color: var(--text-secondary);
+}
+
 .apt-badge--dim {
   background: rgba(240, 208, 176, 0.04);
   color: var(--text-dim);

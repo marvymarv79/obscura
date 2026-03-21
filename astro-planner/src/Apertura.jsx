@@ -259,6 +259,7 @@ function Apertura() {
   const [filterSets, setFilterSets] = useState([])
   const [filterSetMembers, setFilterSetMembers] = useState([])
   const [saving, setSaving] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
   // NINA Export state
   const [selectedExportProfile, setSelectedExportProfile] = useState(null)
@@ -460,14 +461,15 @@ function Apertura() {
   }
 
   const deleteProfile = async (id) => {
-    if (!confirm('Delete this imaging profile?')) return
     try {
       const res = await fetch(`/api/apertura/profiles/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Delete failed')
       showToast('Profile deleted')
+      setConfirmDeleteId(null)
       fetchProfiles()
     } catch (err) {
       showToast(`Delete error: ${err.message}`)
+      setConfirmDeleteId(null)
     }
   }
 
@@ -802,7 +804,14 @@ function Apertura() {
                             <span className="apt-badge apt-badge--dim" style={{ marginTop: 4 }}>NINA export not supported</span>
                           )}
                         </div>
-                        <button className="apt-delete-btn" onClick={() => deleteProfile(p.id)} title="Delete profile">×</button>
+                        {confirmDeleteId === p.id ? (
+                          <div className="apt-confirm-delete">
+                            <button className="apt-confirm-yes" onClick={() => deleteProfile(p.id)}>Delete?</button>
+                            <button className="apt-confirm-no" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                          </div>
+                        ) : (
+                          <button className="apt-delete-btn" onClick={() => setConfirmDeleteId(p.id)} title="Delete profile">×</button>
+                        )}
                       </div>
                     ))}
                   </div>
