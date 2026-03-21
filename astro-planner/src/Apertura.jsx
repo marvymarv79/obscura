@@ -92,7 +92,7 @@ function FilterCard({ item }) {
       </span>
       {item.bandpass_nm && (
         <div className="apt-card-specs">
-          <span>{item.bandpass_width_nm}nm @ {item.bandpass_nm}nm</span>
+          <span>{parseFloat(item.bandpass_width_nm)}nm @ {parseFloat(item.bandpass_nm)}nm</span>
           {item.transmission_pct && <span>{item.transmission_pct}% T</span>}
         </div>
       )}
@@ -119,7 +119,7 @@ function AccessoryCard({ item }) {
       <h3 className="apt-card-model">{item.model}</h3>
       {item.category && <span className="apt-badge apt-badge--default">{item.category}</span>}
       <div className="apt-card-specs">
-        {item.reduction_factor && <span>{item.reduction_factor}x</span>}
+        {item.reduction_factor && <span>{parseFloat(item.reduction_factor)}x</span>}
       </div>
       {item.compatible_optics && <p className="apt-card-muted">{item.compatible_optics}</p>}
     </div>
