@@ -1,7 +1,8 @@
 /**
  * Night scoring algorithm for Astrospheric forecast data.
  *
- * Weights: seeing 35%, clouds 30%, transparency 20%, wind 10%, dew 5%
+ * Weights: clouds 40%, transparency 25%, seeing 20%, wind 10%, dew 5%
+ * Calibrated for West Texas imaging conditions.
  *
  * Each factor is normalized to 0-100 where 100 = best for imaging.
  */
@@ -25,9 +26,9 @@ export function scoreHour({ seeing, clouds, transparency, wind, dewDelta }) {
   const dewNorm = Math.min(100, Math.max(0, dewDelta * 4))
 
   return Math.round(
-    seeingNorm * 0.35 +
-    cloudsNorm * 0.30 +
-    transpNorm * 0.20 +
+    seeingNorm * 0.20 +
+    cloudsNorm * 0.40 +
+    transpNorm * 0.25 +
     windNorm * 0.10 +
     dewNorm * 0.05
   )
