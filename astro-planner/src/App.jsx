@@ -6,6 +6,7 @@ import {
   UserButton,
   useUser
 } from '@clerk/clerk-react'
+import { Link } from 'react-router-dom'
 import { useApi } from './hooks/useApi'
 import './App.css'
 import {
@@ -595,6 +596,7 @@ function App() {
         {/* Top Nav Bar */}
         <nav className="top-nav">
           <div className="nav-left">
+            <Link to="/" className="nav-hub-link">&larr; Hub</Link>
             <svg className="nav-logo-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
             </svg>
