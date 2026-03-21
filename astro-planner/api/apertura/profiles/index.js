@@ -1,6 +1,9 @@
 import { neon } from '@neondatabase/serverless'
 
 export default async function handler(req, res) {
+  console.log('=== PROFILE INDEX HANDLER CALLED ===');
+  console.log('Method:', req.method, 'URL:', req.url, 'Query:', JSON.stringify(req.query));
+
   const sql = neon(process.env.DATABASE_URL)
 
   if (req.method === 'GET') {
