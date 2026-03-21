@@ -5,6 +5,7 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
 import Hub from './Hub.jsx'
 import App from './App.jsx'
+import Apertura from './Apertura.jsx'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')).render(
         <Routes>
           <Route path="/" element={<Hub />} />
           <Route path="/obscura" element={<App />} />
+          <Route path="/apertura" element={<Apertura />} />
         </Routes>
       </ClerkProvider>
     </BrowserRouter>

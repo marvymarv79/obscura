@@ -8,9 +8,9 @@ export const tools = [
   },
   {
     name: 'Apertura',
-    description: 'Coming soon — a new way to capture and share your astrophotography.',
+    description: 'Manage your imaging gear, build equipment profiles, and export to NINA.',
     route: '/apertura',
-    status: 'soon',
+    status: 'live',
     accentColor: 'crimson',
   },
 ]

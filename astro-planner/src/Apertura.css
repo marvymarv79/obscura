@@ -1,0 +1,189 @@
+/* ── Apertura shell ── */
+
+.apertura {
+  min-height: 100vh;
+  background: var(--bg-base);
+}
+
+/* Sign-in state */
+.apertura-signin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 1.5rem;
+  color: var(--text-primary);
+}
+
+.apertura-signin-btn {
+  background: var(--accent-crimson);
+  color: #fff;
+  border: none;
+  padding: 0.65rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: var(--font-heading);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.apertura-signin-btn:hover {
+  opacity: 0.85;
+}
+
+/* ── Top Nav ── */
+
+.apt-top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-default);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.apt-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.apt-nav-home {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.apt-nav-logo-icon {
+  color: var(--accent-crimson);
+}
+
+.apt-nav-wordmark {
+  font-size: 1.15rem;
+  font-weight: var(--font-heading);
+  color: var(--text-primary);
+}
+
+.apt-nav-accent {
+  color: var(--accent-crimson);
+}
+
+.apt-nav-back {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.apt-nav-back:hover {
+  color: var(--text-secondary);
+}
+
+.apt-nav-center {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg-base);
+  padding: 0.25rem;
+  border-radius: 8px;
+}
+
+.apt-nav-pill {
+  padding: 0.45rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: var(--font-heading);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.apt-nav-pill:hover {
+  color: var(--text-primary);
+  background: rgba(240, 208, 176, 0.04);
+}
+
+.apt-nav-pill.active {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.apt-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.apt-nav-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(204, 41, 54, 0.15);
+  border: 1px solid rgba(204, 41, 54, 0.3);
+  color: var(--accent-crimson);
+  font-size: 0.7rem;
+  font-weight: var(--font-heading);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+/* ── Content area ── */
+
+.apt-content {
+  padding: 2rem 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.apt-placeholder-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.apt-placeholder-heading {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.apt-placeholder-desc {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 768px) {
+  .apt-top-nav {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .apt-nav-center {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .apt-nav-pill {
+    font-size: 0.78rem;
+    padding: 0.4rem 0.65rem;
+  }
+
+  .apt-nav-back {
+    display: none;
+  }
+}
