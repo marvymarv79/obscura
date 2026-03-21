@@ -261,15 +261,14 @@ function App() {
       const { data, timestamp } = JSON.parse(cached)
       if (Date.now() - timestamp > FORECAST_CACHE_TTL) { localStorage.removeItem(key); return null }
       return data
-    } catch (e) { console.warn('[cache] forecast read failed:', e); return null }
+    } catch { return null }
   }
 
   const setCachedForecast = (lat, lng, data) => {
     try {
       const key = cacheKey('forecast', lat, lng)
       localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
-      console.log('[cache] wrote forecast:', key)
-    } catch (e) { console.warn('[cache] forecast write failed:', e) }
+    } catch { /* quota exceeded */ }
   }
 
   const getCachedMoon = (lat, lng, dateStr) => {
@@ -280,24 +279,21 @@ function App() {
       const { data, timestamp } = JSON.parse(cached)
       if (Date.now() - timestamp > MOON_CACHE_TTL) { localStorage.removeItem(key); return null }
       return data
-    } catch (e) { console.warn('[cache] moon read failed:', e); return null }
+    } catch { return null }
   }
 
   const setCachedMoon = (lat, lng, dateStr, data) => {
     try {
       const key = cacheKey('moon', lat, lng, dateStr)
       localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
-      console.log('[cache] wrote moon:', key)
-    } catch (e) { console.warn('[cache] moon write failed:', e) }
+    } catch { /* quota exceeded */ }
   }
 
   const fetchForecastData = async (latitude, longitude) => {
     const cached = getCachedForecast(latitude, longitude)
     if (cached) {
-      console.log('[cache] forecast HIT for', latitude.toFixed(2), longitude.toFixed(2))
       setAstropheric(cached)
     } else {
-      console.log('[cache] forecast MISS for', latitude.toFixed(2), longitude.toFixed(2))
       const astrophericResponse = await fetch(`/api/astropheric?lat=${latitude}&lon=${longitude}`)
       if (astrophericResponse.ok) {
         const astroData = await astrophericResponse.json()
@@ -311,10 +307,8 @@ function App() {
     const dateStr = new Date().toISOString().split('T')[0]
     const cached = getCachedMoon(latitude, longitude, dateStr)
     if (cached) {
-      console.log('[cache] moon HIT for', latitude.toFixed(2), longitude.toFixed(2), dateStr)
       setMoon(cached)
     } else {
-      console.log('[cache] moon MISS for', latitude.toFixed(2), longitude.toFixed(2), dateStr)
       const moonResponse = await fetch(`/api/moon?lat=${latitude}&lon=${longitude}`)
       const moonData = await moonResponse.json()
       setMoon(moonData)
