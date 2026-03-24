@@ -49,21 +49,26 @@ export default async function handler(req, res) {
           const fovRaw = Math.max(parseFloat(target.maj_axis_arcmin) || 20, 20) / 60 * 2.5
           const fov = Math.max(0.1, Math.min(10.0, fovRaw))
 
-          // Use STScI DSS server (more reliable from Vercel than Strasbourg)
-          const fovArcmin = fov * 60
-          const dssUrl = `https://archive.stsci.edu/cgi-bin/dss_search?v=poss2ukstu_red&r=${target.ra_deg}&d=${target.dec_deg}&e=J2000&h=${fovArcmin}&w=${fovArcmin}&f=gif&c=none&fov=NONE&v3=`
+          // Use NASA SkyView — accepts degrees, returns JPEG
+          const dssUrl = `https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position=${target.ra_deg},${target.dec_deg}&Survey=DSS2R&Pixels=300&Size=${fov}&Return=JPEG`
 
-          const dssResponse = await fetch(dssUrl, { signal: AbortSignal.timeout(15000) })
-          if (!dssResponse.ok) throw new Error(`DSS HTTP ${dssResponse.status} for ${target.ngc_ic_id}`)
+          const dssResponse = await fetch(dssUrl, {
+            signal: AbortSignal.timeout(8000),
+            redirect: 'follow'
+          })
+          if (!dssResponse.ok) throw new Error(`SkyView HTTP ${dssResponse.status} for ${target.ngc_ic_id}`)
+
+          const contentType = dssResponse.headers.get('content-type') || ''
+          if (!contentType.includes('image')) {
+            throw new Error(`SkyView returned ${contentType} not image for ${target.ngc_ic_id}`)
+          }
 
           const imageBuffer = await dssResponse.arrayBuffer()
-          const contentType = dssResponse.headers.get('content-type') || 'image/gif'
-          const ext = contentType.includes('gif') ? 'gif' : 'jpg'
-          const filename = `target-previews/${target.ngc_ic_id}.${ext}`
+          const filename = `target-previews/${target.ngc_ic_id}.jpg`
 
           const blob = await put(filename, Buffer.from(imageBuffer), {
             access: 'public',
-            contentType,
+            contentType: 'image/jpeg',
             token: process.env.BLOB_READ_WRITE_TOKEN
           })
 
