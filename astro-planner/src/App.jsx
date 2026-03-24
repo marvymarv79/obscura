@@ -639,7 +639,7 @@ function App() {
                 post={post}
                 coords={coords}
                 utcOffsetMinutes={astropheric?.UTCMinuteOffset != null ? -astropheric.UTCMinuteOffset : (coords ? Math.round(coords.longitude / 15) * 60 : 0)}
-                forecastScore={null}
+                forecastScore={forecastDays[0]?.score ?? null}
                 onAddToPlan={handleSavePlan}
                 onPlanCreated={loadPlans}
               />

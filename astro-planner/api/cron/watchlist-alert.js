@@ -64,7 +64,26 @@ export default async function handler(req, res) {
         const lng = parseFloat(loc.longitude)
         const location = { latitude: lat, longitude: lng, min_altitude_deg: 25 }
         const tonight = new Date()
-        const utcOffset = Math.round(lng / 15) * 60
+
+        // Fetch Astrospheric forecast to get real UTCMinuteOffset
+        let utcOffset = Math.round(lng / 15) * 60 // fallback
+        try {
+          const apiKey = process.env.ASTROPHERIC_API_KEY
+          if (apiKey) {
+            const astroResp = await fetch('https://astrosphericpublicaccess.azurewebsites.net/api/GetForecastData_V1', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ Latitude: lat, Longitude: lng, APIKey: apiKey }),
+              signal: AbortSignal.timeout(8000)
+            })
+            if (astroResp.ok) {
+              const astroData = await astroResp.json()
+              if (astroData.UTCMinuteOffset != null) {
+                utcOffset = -astroData.UTCMinuteOffset // Astrospheric uses positive for west
+              }
+            }
+          }
+        } catch { /* use longitude fallback */ }
 
         for (const target of entries) {
           try {
@@ -73,7 +92,7 @@ export default async function handler(req, res) {
             if (!result.imagingWindow || result.imagingWindow.duration_minutes < 360) continue
 
             const filterSeq = getFilterSequence(
-              target, result.imagingWindow, result.transitTime, 'Mono', -utcOffset
+              target, result.imagingWindow, result.transitTime, 'Mono', utcOffset
             )
 
             qualifyingTargets.push({
