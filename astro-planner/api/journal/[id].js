@@ -47,6 +47,8 @@ async function handler(req, res, userId) {
           content,
           entryDate,
           imagingPlanId,
+          imagingTrainId,
+          processingSoftware,
           tagIds,
           newTags
         } = req.body
@@ -57,6 +59,8 @@ async function handler(req, res, userId) {
             content,
             entryDate,
             imagingPlanId,
+            imagingTrainId: imagingTrainId !== undefined ? (imagingTrainId || null) : undefined,
+            processingSoftware: processingSoftware !== undefined ? (processingSoftware || null) : undefined,
             updatedAt: new Date()
           })
           .where(and(eq(journalEntries.id, id), eq(journalEntries.userId, userId)))

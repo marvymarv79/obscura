@@ -113,6 +113,8 @@ export const journalEntries = pgTable('journal_entries', {
   content: text('content'), // Markdown content
   entryDate: date('entry_date').notNull(),
   imagingPlanId: uuid('imaging_plan_id').references(() => imagingPlans.id, { onDelete: 'set null' }),
+  imagingTrainId: integer('imaging_train_id'), // Apertura profile ID (no FK - separate schema)
+  processingSoftware: text('processing_software'), // Comma-separated: "Siril,PixInsight"
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 })
