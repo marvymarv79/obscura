@@ -172,6 +172,19 @@ console.log('\n=== Test 4a: getFilterSequence — broadband + mono ===')
   // Should NOT have narrowband filters
   const hasNB = filters.some(f => ['Ha', 'SII', 'OIII'].includes(f))
   assert('broadband has no NB filters', !hasNB)
+
+  // L should be near transit (05:30 UTC), not at the edges
+  const lBlock = blocks.find(b => b.filter === 'L')
+  const rBlock = blocks.find(b => b.filter === 'R')
+  if (lBlock && rBlock) {
+    // L start time should be closer to 05:30 than R start time
+    // Parse HH:MM to minutes for comparison
+    const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+    const transitMin = 5 * 60 + 30 // 05:30
+    const lDist = Math.min(Math.abs(toMin(lBlock.start) - transitMin), Math.abs(toMin(lBlock.start) + 1440 - transitMin))
+    const rDist = Math.min(Math.abs(toMin(rBlock.start) - transitMin), Math.abs(toMin(rBlock.start) + 1440 - transitMin))
+    assert(`L closer to transit than R (L=${lBlock.start}, R=${rBlock.start})`, lDist < rDist)
+  }
 }
 
 // ─── Test 4b: getFilterSequence for OSC camera ───

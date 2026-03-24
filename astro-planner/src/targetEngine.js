@@ -312,124 +312,89 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
     }]
   }
 
-  // Mono camera — divide window into filter blocks by time proportion
+  // Mono camera — assign filters by proximity to transit
+  // Slots closest to transit get the best-seeing filter
   const isNarrowband = target.best_imaging_type === 'narrowband'
+  const stepMs = 5 * 60 * 1000
   const totalMs = end.getTime() - start.getTime()
-  const blocks = []
+  const transitMs = transitTime.getTime()
 
-  // Filter sequence ordered by priority (best seeing first)
-  // Sorted by distance from transit: closest to transit = first filter
+  // Filter priority: index 0 = best seeing (near transit), last = worst
   let filterPlan
   if (isNarrowband) {
-    // Narrowband: Ha, OIII, SII only — no L
     filterPlan = [
       { filter: 'OIII', pct: 0.30, subLen: 300 },
       { filter: 'Ha', pct: 0.40, subLen: 300 },
       { filter: 'SII', pct: 0.30, subLen: 300 }
     ]
   } else {
-    // Broadband/LRGB: L near transit, B when high, G mid, R lowest
     filterPlan = [
-      { filter: 'L', pct: 0.35, subLen: 300 },
+      { filter: 'L', pct: 0.25, subLen: 300 },
       { filter: 'B', pct: 0.20, subLen: 180 },
       { filter: 'G', pct: 0.20, subLen: 180 },
-      { filter: 'R', pct: 0.25, subLen: 180 }
+      { filter: 'R', pct: 0.35, subLen: 180 }
     ]
   }
 
-  // Sort slots by distance from transit — closest first
-  // Then assign filter blocks in priority order around transit
-  const transitMs = transitTime.getTime()
-  const windowStartMs = start.getTime()
+  // Create time slots and sort by distance from transit
+  const slots = []
+  for (let t = start.getTime(); t < end.getTime(); t += stepMs) {
+    slots.push({ time: t, distFromTransit: Math.abs(t + stepMs / 2 - transitMs) })
+  }
+  // Sort by distance from transit (closest first)
+  const sortedSlots = [...slots].sort((a, b) => a.distFromTransit - b.distFromTransit)
 
-  // Determine if transit is before, during, or after window
-  const transitInWindow = transitMs >= windowStartMs && transitMs <= end.getTime()
-
-  if (transitInWindow) {
-    // Split: filters before transit (ascending) and after (descending)
-    // Center L on transit, spread others outward
-    let cursor = windowStartMs
-    const preDuration = transitMs - windowStartMs
-    const postDuration = end.getTime() - transitMs
-
-    // Assign filters: L centered on transit, others spread outward
-    // Pre-transit: last filters first (R at start, G, B closer to transit)
-    // Post-transit: same order reversed (B, G, R)
-    const preFilters = [...filterPlan].reverse() // R, G, B, L
-    const postFilters = [...filterPlan].slice(1) // B, G, R (skip L)
-
-    // L block centered on transit
-    const lPlan = filterPlan[0]
-    const lMs = Math.round(totalMs * lPlan.pct)
-    const lStart = Math.max(windowStartMs, transitMs - lMs / 2)
-    const lEnd = Math.min(end.getTime(), lStart + lMs)
-    blocks.push({
-      filter: lPlan.filter,
-      start: formatTime(new Date(lStart)),
-      end: formatTime(new Date(lEnd)),
-      subLength: lPlan.subLen,
-      estimatedSubs: Math.floor((lEnd - lStart) / 1000 / lPlan.subLen)
-    })
-
-    // Pre-transit blocks (before L block)
-    const preMs = lStart - windowStartMs
-    if (preMs > 60000) {
-      const preItems = filterPlan.slice(1).reverse() // R, G, B
-      let preCursor = windowStartMs
-      for (let i = 0; i < preItems.length && preCursor < lStart; i++) {
-        const share = preItems[i].pct / preItems.reduce((s, p) => s + p.pct, 0)
-        const blockMs = Math.min(Math.round(preMs * share), lStart - preCursor)
-        if (blockMs < 60000) continue
-        blocks.push({
-          filter: preItems[i].filter,
-          start: formatTime(new Date(preCursor)),
-          end: formatTime(new Date(preCursor + blockMs)),
-          subLength: preItems[i].subLen,
-          estimatedSubs: Math.floor(blockMs / 1000 / preItems[i].subLen)
-        })
-        preCursor += blockMs
-      }
-    }
-
-    // Post-transit blocks (after L block)
-    const postMs = end.getTime() - lEnd
-    if (postMs > 60000) {
-      const postItems = filterPlan.slice(1) // B, G, R
-      let postCursor = lEnd
-      for (let i = 0; i < postItems.length && postCursor < end.getTime(); i++) {
-        const share = postItems[i].pct / postItems.reduce((s, p) => s + p.pct, 0)
-        const blockMs = Math.min(Math.round(postMs * share), end.getTime() - postCursor)
-        if (blockMs < 60000) continue
-        blocks.push({
-          filter: postItems[i].filter,
-          start: formatTime(new Date(postCursor)),
-          end: formatTime(new Date(postCursor + blockMs)),
-          subLength: postItems[i].subLen,
-          estimatedSubs: Math.floor(blockMs / 1000 / postItems[i].subLen)
-        })
-        postCursor += blockMs
-      }
-    }
-  } else {
-    // Transit outside window — assign proportionally in order
-    let cursor = windowStartMs
-    for (const plan of filterPlan) {
-      const blockMs = Math.round(totalMs * plan.pct)
-      if (blockMs < 60000) continue
-      const blockEnd = Math.min(cursor + blockMs, end.getTime())
-      blocks.push({
-        filter: plan.filter,
-        start: formatTime(new Date(cursor)),
-        end: formatTime(new Date(blockEnd)),
-        subLength: plan.subLen,
-        estimatedSubs: Math.floor((blockEnd - cursor) / 1000 / plan.subLen)
-      })
-      cursor = blockEnd
+  // Assign filter to each slot based on priority percentages
+  const totalSlots = sortedSlots.length
+  const filterAssignments = new Map() // time -> filter plan entry
+  let assignedCount = 0
+  for (const plan of filterPlan) {
+    const slotCount = Math.max(1, Math.round(totalSlots * plan.pct))
+    for (let i = 0; i < slotCount && assignedCount < totalSlots; i++) {
+      filterAssignments.set(sortedSlots[assignedCount].time, plan)
+      assignedCount++
     }
   }
+  // Assign remaining slots to last filter
+  while (assignedCount < totalSlots) {
+    filterAssignments.set(sortedSlots[assignedCount].time, filterPlan[filterPlan.length - 1])
+    assignedCount++
+  }
 
-  // Sort by start time
-  blocks.sort((a, b) => a.start.localeCompare(b.start))
+  // Now walk chronologically and group consecutive same-filter slots into blocks
+  const blocks = []
+  let currentBlock = null
+  for (const slot of slots) {
+    const plan = filterAssignments.get(slot.time)
+    if (!currentBlock || currentBlock.filter !== plan.filter) {
+      if (currentBlock) {
+        const blockEnd = new Date(currentBlock.endTime + stepMs)
+        const durSec = (blockEnd.getTime() - currentBlock.startTime) / 1000
+        blocks.push({
+          filter: currentBlock.filter,
+          start: formatTime(new Date(currentBlock.startTime)),
+          end: formatTime(blockEnd),
+          subLength: currentBlock.subLen,
+          estimatedSubs: Math.floor(durSec / currentBlock.subLen)
+        })
+      }
+      currentBlock = { filter: plan.filter, subLen: plan.subLen, startTime: slot.time, endTime: slot.time }
+    } else {
+      currentBlock.endTime = slot.time
+    }
+  }
+  // Flush last block
+  if (currentBlock) {
+    const blockEnd = new Date(currentBlock.endTime + stepMs)
+    const durSec = (blockEnd.getTime() - currentBlock.startTime) / 1000
+    blocks.push({
+      filter: currentBlock.filter,
+      start: formatTime(new Date(currentBlock.startTime)),
+      end: formatTime(blockEnd),
+      subLength: currentBlock.subLen,
+      estimatedSubs: Math.floor(durSec / currentBlock.subLen)
+    })
+  }
 
   return blocks
 }
