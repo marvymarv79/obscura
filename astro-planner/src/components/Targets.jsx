@@ -156,11 +156,20 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [typeFilter, setTypeFilter] = useState('all')
+  const [trainFilter, setTrainFilter] = useState('')
   const [sortBy, setSortBy] = useState('score')
   const [targetDate, setTargetDate] = useState(() => new Date().toISOString().split('T')[0])
   const [detailTarget, setDetailTarget] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailData, setDetailData] = useState(null)
+  const [imagingTrains, setImagingTrains] = useState([])
+
+  useEffect(() => {
+    fetch('/api/apertura/profiles')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setImagingTrains(Array.isArray(data) ? data : []))
+      .catch(() => setImagingTrains([]))
+  }, [])
 
   const maxDate = new Date()
   maxDate.setDate(maxDate.getDate() + 3)
@@ -179,6 +188,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
         minScore: '40',
         type: typeFilter
       })
+      if (trainFilter) params.set('trainId', trainFilter)
       const resp = await fetch(`/api/obscura/targets?${params}`)
       if (!resp.ok) throw new Error('Failed to fetch targets')
       const data = await resp.json()
@@ -188,7 +198,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
       setTargets([])
     }
     setLoading(false)
-  }, [coords, targetDate, typeFilter])
+  }, [coords, targetDate, typeFilter, trainFilter])
 
   useEffect(() => {
     fetchTargets()
@@ -255,6 +265,13 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
               </button>
             ))}
           </div>
+          <select className="targets-train-filter" value={trainFilter}
+            onChange={(e) => setTrainFilter(e.target.value)}>
+            <option value="">Any train</option>
+            {imagingTrains.map(train => (
+              <option key={train.id} value={train.id}>{train.profile_name}</option>
+            ))}
+          </select>
           <button className={`sort-toggle ${sortBy === 'window' ? 'alt' : ''}`}
             onClick={() => setSortBy(sortBy === 'score' ? 'window' : 'score')}>
             {sortBy === 'score' ? 'By Score' : 'By Window'}

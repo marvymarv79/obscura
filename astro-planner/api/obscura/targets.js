@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { lat, lng, date, minAlt, type, minScore } = req.query
+  const { lat, lng, date, minAlt, type, minScore, trainId } = req.query
 
   if (!lat || !lng) {
     return res.status(400).json({ error: 'lat and lng are required' })
@@ -62,6 +62,11 @@ export default async function handler(req, res) {
 
     const location = { latitude, longitude, min_altitude_deg: minAltDeg }
 
+    // Filter imaging trains if a specific train is requested
+    const trainsForScoring = trainId
+      ? imagingTrains.filter(t => t.id === parseInt(trainId))
+      : imagingTrains
+
     // Simple moon data — use current date approximation
     // In production this would come from GetSky_V1
     const moonData = null // Will be enhanced when moon API is wired
@@ -70,8 +75,10 @@ export default async function handler(req, res) {
     const scored = []
     for (const target of targets) {
       try {
-        const result = scoreTarget(target, location, targetDate, moonData, imagingTrains)
+        const result = scoreTarget(target, location, targetDate, moonData, trainsForScoring)
         if (result && result.score >= minScoreVal) {
+          // When filtering by train, only include if FOV score > 0.3
+          if (trainId && result.components.fov <= 0.3) continue
           scored.push({
             ...target,
             ...result

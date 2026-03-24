@@ -3365,6 +3365,21 @@ tbody tr:hover {
   border-color: var(--accent-ember);
 }
 
+.targets-train-filter {
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  max-width: 160px;
+}
+
+.targets-train-filter:focus {
+  border-color: var(--border-accent);
+  outline: none;
+}
+
 .sort-toggle {
   padding: 0.25rem 0.6rem;
   border-radius: 6px;
