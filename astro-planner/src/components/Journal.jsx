@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+const PROCESSING_SOFTWARE_OPTIONS = ['Seestar', 'Siril', 'PixInsight', 'Photoshop', 'Lightroom']
 
 export default function Journal({
   entries,
@@ -24,6 +26,21 @@ export default function Journal({
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState('#3b82f6')
   const [saving, setSaving] = useState(false)
+  const [imagingTrainId, setImagingTrainId] = useState('')
+  const [processingSoftware, setProcessingSoftware] = useState([])
+
+  // Imaging train profiles from Apertura
+  const [imagingTrains, setImagingTrains] = useState([])
+  const [trainsLoading, setTrainsLoading] = useState(false)
+
+  useEffect(() => {
+    setTrainsLoading(true)
+    fetch('/api/apertura/profiles')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setImagingTrains(Array.isArray(data) ? data : []))
+      .catch(() => setImagingTrains([]))
+      .finally(() => setTrainsLoading(false))
+  }, [])
 
   const tagColors = [
     '#3b82f6', // blue
@@ -52,12 +69,16 @@ export default function Journal({
       setContent(entry.content || '')
       setEntryDate(entry.entryDate)
       setSelectedTags(entry.tags?.map(t => t.id) || [])
+      setImagingTrainId(entry.imagingTrainId ? String(entry.imagingTrainId) : '')
+      setProcessingSoftware(entry.processingSoftware ? entry.processingSoftware.split(',').filter(Boolean) : [])
     } else {
       setEditingEntry(null)
       setTitle('')
       setContent('')
       setEntryDate(new Date().toISOString().split('T')[0])
       setSelectedTags([])
+      setImagingTrainId('')
+      setProcessingSoftware([])
     }
     setShowEditor(true)
   }
@@ -69,6 +90,8 @@ export default function Journal({
     setContent('')
     setSelectedTags([])
     setNewTagName('')
+    setImagingTrainId('')
+    setProcessingSoftware([])
   }
 
   const handleSave = async () => {
@@ -89,6 +112,8 @@ export default function Journal({
         title: title.trim(),
         content: content.trim(),
         entryDate,
+        imagingTrainId: imagingTrainId ? parseInt(imagingTrainId, 10) : null,
+        processingSoftware: processingSoftware.length > 0 ? processingSoftware.join(',') : null,
         tagIds: selectedTags,
         newTags
       }
@@ -124,6 +149,20 @@ export default function Journal({
         ? prev.filter(id => id !== tagId)
         : [...prev, tagId]
     )
+  }
+
+  const toggleSoftware = (name) => {
+    setProcessingSoftware(prev =>
+      prev.includes(name)
+        ? prev.filter(s => s !== name)
+        : [...prev, name]
+    )
+  }
+
+  const getTrainName = (trainId) => {
+    if (!trainId) return null
+    const train = imagingTrains.find(t => t.id === trainId || t.id === parseInt(trainId, 10))
+    return train ? train.profile_name : null
   }
 
   // Filter entries
@@ -213,6 +252,9 @@ export default function Journal({
                 <h4 className="entry-title">{entry.title}</h4>
                 <span className="entry-date">{formatDate(entry.entryDate)}</span>
               </div>
+              {getTrainName(entry.imagingTrainId) && (
+                <div className="entry-imaging-train">{getTrainName(entry.imagingTrainId)}</div>
+              )}
               {entry.content && (
                 <p className="entry-preview">
                   {entry.content.length > 150
@@ -220,19 +262,28 @@ export default function Journal({
                     : entry.content}
                 </p>
               )}
-              {entry.tags && entry.tags.length > 0 && (
-                <div className="entry-tags">
-                  {entry.tags.map(tag => (
-                    <span
-                      key={tag.id}
-                      className="entry-tag"
-                      style={{ backgroundColor: tag.color || '#666' }}
-                    >
-                      {tag.name}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <div className="entry-meta-row">
+                {entry.tags && entry.tags.length > 0 && (
+                  <div className="entry-tags">
+                    {entry.tags.map(tag => (
+                      <span
+                        key={tag.id}
+                        className="entry-tag"
+                        style={{ backgroundColor: tag.color || '#666' }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {entry.processingSoftware && (
+                  <div className="entry-software-pills">
+                    {entry.processingSoftware.split(',').filter(Boolean).map(sw => (
+                      <span key={sw} className="software-pill">{sw}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -275,6 +326,44 @@ export default function Journal({
                   placeholder="Write your notes, observations, or insights..."
                   rows={10}
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Imaging Train</label>
+                <select
+                  value={imagingTrainId}
+                  onChange={(e) => setImagingTrainId(e.target.value)}
+                  className="imaging-train-select"
+                >
+                  <option value="">— None —</option>
+                  {trainsLoading ? (
+                    <option disabled>Loading...</option>
+                  ) : imagingTrains.length === 0 ? (
+                    <option disabled>— Unavailable —</option>
+                  ) : (
+                    imagingTrains.map(train => (
+                      <option key={train.id} value={train.id}>
+                        {train.profile_name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Processing Software</label>
+                <div className="software-checkboxes">
+                  {PROCESSING_SOFTWARE_OPTIONS.map(sw => (
+                    <label key={sw} className="software-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={processingSoftware.includes(sw)}
+                        onChange={() => toggleSoftware(sw)}
+                      />
+                      <span>{sw}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className="form-group">

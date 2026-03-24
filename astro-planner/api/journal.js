@@ -75,6 +75,8 @@ async function handler(req, res, userId) {
           content,
           entryDate,
           imagingPlanId,
+          imagingTrainId,
+          processingSoftware,
           tagIds,
           newTags // Array of { name, color } for creating new tags inline
         } = req.body
@@ -89,7 +91,9 @@ async function handler(req, res, userId) {
           title,
           content: content || null,
           entryDate,
-          imagingPlanId: imagingPlanId || null
+          imagingPlanId: imagingPlanId || null,
+          imagingTrainId: imagingTrainId || null,
+          processingSoftware: processingSoftware || null
         }).returning()
 
         const allTagIds = [...(tagIds || [])]

@@ -2471,6 +2471,68 @@ tbody tr:hover {
   color: var(--bg-base);
 }
 
+.entry-imaging-train {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.entry-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.entry-software-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.software-pill {
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: var(--font-heading);
+  background: var(--accent-ember);
+  color: var(--bg-base);
+}
+
+.imaging-train-select {
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.imaging-train-select:focus {
+  border-color: var(--border-accent);
+  outline: none;
+}
+
+.software-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.software-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.software-checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent-ember);
+}
+
 /* Journal Editor Modal */
 .journal-editor-overlay {
   position: fixed;
