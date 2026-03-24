@@ -151,7 +151,7 @@ function AltitudeChart({ altitudeCurve, imagingWindow, filterSequence, minAlt })
   )
 }
 
-export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated, onAddToPlan }) {
+export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated, onAddToPlan, utcOffsetMinutes }) {
   const [targets, setTargets] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -221,6 +221,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
         date: targetDate
       })
       if (target.bestTrainId) params.set('trainId', target.bestTrainId)
+      if (utcOffsetMinutes != null) params.set('utcOffset', utcOffsetMinutes)
       const resp = await fetch(`/api/obscura/target-detail?${params}`)
       if (!resp.ok) throw new Error('Failed to fetch detail')
       const data = await resp.json()

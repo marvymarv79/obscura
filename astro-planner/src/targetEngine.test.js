@@ -254,6 +254,38 @@ console.log('\n=== Test 7: getMoonSeparation ===')
   assert(`90° apart (got ${sep90.toFixed(1)})`, Math.abs(sep90 - 90) < 5)
 }
 
+// ─── Test 8: NGC2632 filter sequence with CDT offset ───
+console.log('\n=== Test 8: NGC2632 filter sequence — local CDT times ===')
+{
+  const NGC2632 = { ngc_ic_id: 'NGC2632', ra_deg: 130.09, dec_deg: 19.67, best_imaging_type: 'broadband' }
+  const DATE = new Date('2026-03-24T00:00:00Z')
+  const CDT_OFFSET = -300 // UTC-5
+
+  const imagingWindow = getImagingWindow(130.09, 19.67, 32.04, -102.14, DATE, 35)
+  const transit = getTransitTime(130.09, 32.04, -102.14, DATE)
+
+  assert('NGC2632 has imaging window', imagingWindow !== null)
+  if (imagingWindow) {
+    const sequence = getFilterSequence(NGC2632, imagingWindow, transit, 'Mono', CDT_OFFSET)
+    const lBlock = sequence.find(b => b.filter === 'L')
+
+    assert('has L block', lBlock != null)
+    if (lBlock) {
+      const lStartHour = parseInt(lBlock.start.split(':')[0])
+      console.log(`  L block: ${lBlock.start} — ${lBlock.end} (local CDT)`)
+      console.log(`  L start hour: ${lStartHour}`)
+      // L should start in the evening (20-23) in local time, not at 02:xx UTC
+      assert(`L starts in evening local time (hour=${lStartHour}, expect 20-23)`,
+        lStartHour >= 20 && lStartHour <= 23)
+    }
+
+    // All 4 LRGB filters present
+    const filters = sequence.map(b => b.filter)
+    assert('has all LRGB', filters.includes('L') && filters.includes('R') && filters.includes('G') && filters.includes('B'))
+    console.log(`  Full sequence: ${sequence.map(b => `${b.filter} ${b.start}-${b.end}`).join(' | ')}`)
+  }
+}
+
 // ─── Summary ───
 console.log(`\n${'='.repeat(40)}`)
 console.log(`Results: ${passed} passed, ${failed} failed`)

@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { targetId, lat, lng, date, trainId } = req.query
+  const { targetId, lat, lng, date, trainId, utcOffset } = req.query
 
   if (!targetId || !lat || !lng) {
     return res.status(400).json({ error: 'targetId, lat, and lng are required' })
@@ -23,6 +23,7 @@ export default async function handler(req, res) {
   const latitude = parseFloat(lat)
   const longitude = parseFloat(lng)
   const targetDate = date ? new Date(date) : new Date()
+  const utcOffsetMinutes = utcOffset ? parseInt(utcOffset) : Math.round(longitude / 15) * 60
 
   try {
     const sql = neon(process.env.DATABASE_URL)
@@ -82,7 +83,7 @@ export default async function handler(req, res) {
 
     // Filter sequence
     const filterSequence = getFilterSequence(
-      target, scoreResult.imagingWindow, scoreResult.transitTime, cameraType
+      target, scoreResult.imagingWindow, scoreResult.transitTime, cameraType, utcOffsetMinutes
     )
 
     // Sub exposures for each filter
@@ -152,7 +153,8 @@ export default async function handler(req, res) {
       hdr,
       weekSchedule,
       altitudeCurve,
-      cameraType
+      cameraType,
+      utcOffsetMinutes
     })
   } catch (error) {
     console.error('Target detail API error:', error)

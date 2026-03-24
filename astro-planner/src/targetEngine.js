@@ -295,7 +295,7 @@ export function scoreTarget(target, location, date, moonData, imagingTrains) {
 /**
  * Returns ordered array of filter blocks for the night.
  */
-export function getFilterSequence(target, imagingWindow, transitTime, cameraType) {
+export function getFilterSequence(target, imagingWindow, transitTime, cameraType, utcOffsetMinutes = 0) {
   if (!imagingWindow) return []
 
   const { start, end } = imagingWindow
@@ -305,8 +305,8 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
   if (cameraType === 'OSC') {
     return [{
       filter: 'OSC',
-      start: formatTime(start),
-      end: formatTime(end),
+      start: formatTime(start, utcOffsetMinutes),
+      end: formatTime(end, utcOffsetMinutes),
       subLength: 300,
       estimatedSubs: Math.floor((end.getTime() - start.getTime()) / 1000 / 300)
     }]
@@ -381,17 +381,19 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
     const durSec = (b.e - b.s) / 1000
     return {
       filter: b.filter,
-      start: formatTime(new Date(b.s)),
-      end: formatTime(new Date(b.e)),
+      start: formatTime(new Date(b.s), utcOffsetMinutes),
+      end: formatTime(new Date(b.e), utcOffsetMinutes),
       subLength: b.subLen,
       estimatedSubs: Math.floor(durSec / b.subLen)
     }
   }).filter(b => b.estimatedSubs > 0)
 }
 
-function formatTime(date) {
-  const h = date.getUTCHours().toString().padStart(2, '0')
-  const m = date.getUTCMinutes().toString().padStart(2, '0')
+function formatTime(date, utcOffsetMinutes = 0) {
+  const localMs = date.getTime() + (utcOffsetMinutes * 60 * 1000)
+  const localDate = new Date(localMs)
+  const h = localDate.getUTCHours().toString().padStart(2, '0')
+  const m = localDate.getUTCMinutes().toString().padStart(2, '0')
   return `${h}:${m}`
 }
 

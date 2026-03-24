@@ -654,6 +654,7 @@ function App() {
                 moon={moon}
                 selectedTargets={selectedTargets}
                 locationName={coords?.locationName || locationName || savedLocations.find(l => coords && parseFloat(l.latitude) === coords.latitude && parseFloat(l.longitude) === coords.longitude)?.name}
+                utcOffsetMinutes={astropheric?.UTCMinuteOffset ?? (coords ? Math.round(coords.longitude / 15) * 60 : 0)}
                 onPlanCreated={loadPlans}
                 onAddToPlan={handleSavePlan}
                 onSelectTarget={(targetData) => {
