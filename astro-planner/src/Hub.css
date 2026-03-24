@@ -50,6 +50,12 @@
   --card-accent-border: rgba(204, 41, 54, 0.25);
 }
 
+.hub-card--violet {
+  --card-accent: #7c3aed;
+  --card-accent-glow: rgba(124, 58, 237, 0.12);
+  --card-accent-border: rgba(124, 58, 237, 0.25);
+}
+
 /* ── Card base ── */
 
 .hub-card {

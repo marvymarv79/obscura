@@ -362,7 +362,8 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                 <div className={`target-card-new ${isExpanded ? 'expanded' : ''}`}>
                   <img className="tc-thumb" loading="lazy"
                     src={getPreviewUrl(target.id, target.ra_deg, target.dec_deg)}
-                    alt="" />
+                    alt=""
+                    onError={(e) => { console.warn('[DSS] Image failed to load', { src: e.target.src }) }} />
                   <div className="tc-left">
                     <div className="tc-designation">{target.messier_number ? `M${target.messier_number} · ${target.ngc_ic_id}` : target.ngc_ic_id}</div>
                     {target.common_name && <div className="tc-common">{target.common_name}</div>}
@@ -398,7 +399,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                         {target.min_axis_arcmin ? ` × ${parseFloat(target.min_axis_arcmin).toFixed(1)}′` : ''}
                       </div>
                     )}
-                    <button className="tc-plan-btn" onClick={() => fetchDetail(target)}>
+                    <button className="tc-plan-btn" onClick={(e) => { e.stopPropagation(); fetchDetail(target) }}>
                       {isExpanded ? 'Close' : 'Plan →'}
                     </button>
                   </div>

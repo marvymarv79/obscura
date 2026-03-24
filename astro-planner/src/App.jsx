@@ -609,10 +609,11 @@ function App() {
           forecastScore: fScore || 0
         })
         const data = await get(`/api/watchlist/check?${params}`)
+        console.log('[WatchlistBadge] check response:', { count: Array.isArray(data) ? data.length : 'not array', fScore })
         if (Array.isArray(data) && data.length > 0) {
           setWatchlistBadge(true)
         }
-      } catch { /* ignore */ }
+      } catch (err) { console.warn('[WatchlistBadge] check failed:', err.message) }
     }
     checkWatchlist()
   }, [isSignedIn, coords, astropheric]) // eslint-disable-line react-hooks/exhaustive-deps

@@ -135,6 +135,7 @@
 .vis-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
 .vis-cell {
   aspect-ratio: 1; border-radius: 2px; border: 1px solid transparent;
+  min-height: 16px; min-width: 16px;
 }
 .vis-cell.today { border-color: var(--accent-ember); }
 .vis-legend {

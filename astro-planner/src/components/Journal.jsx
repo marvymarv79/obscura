@@ -71,7 +71,12 @@ export default function Journal({
   ]
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    // Parse as local date to avoid UTC offset shifting the day back
+    const parts = String(dateStr).split('-')
+    const d = parts.length === 3
+      ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+      : new Date(dateStr)
+    return d.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',

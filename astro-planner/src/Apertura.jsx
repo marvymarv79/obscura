@@ -18,13 +18,13 @@ const TABS = [
 ]
 
 const CATEGORIES = [
-  { key: 'cameras', label: 'Cameras', endpoint: '/api/apertura/cameras', importEndpoint: '/api/apertura/import/cameras' },
-  { key: 'optics', label: 'Optics', endpoint: '/api/apertura/optics', importEndpoint: '/api/apertura/import/optics' },
-  { key: 'filters', label: 'Filters', endpoint: '/api/apertura/filters', importEndpoint: '/api/apertura/import/filters' },
-  { key: 'filterwheels', label: 'Filter Wheels', endpoint: '/api/apertura/filterwheels', importEndpoint: '/api/apertura/import/filterwheels' },
-  { key: 'accessories', label: 'Accessories', endpoint: '/api/apertura/accessories', importEndpoint: '/api/apertura/import/accessories' },
-  { key: 'mounts', label: 'Mounts', endpoint: '/api/apertura/mounts', importEndpoint: '/api/apertura/import/mounts' },
-  { key: 'focusers', label: 'Focusers', endpoint: '/api/apertura/focusers', importEndpoint: '/api/apertura/import/focusers' },
+  { key: 'cameras', label: 'Cameras', endpoint: '/api/apertura/cameras', importEndpoint: '/api/apertura/import/cameras', table: 'apt_cameras' },
+  { key: 'optics', label: 'Optics', endpoint: '/api/apertura/optics', importEndpoint: '/api/apertura/import/optics', table: 'apt_optics' },
+  { key: 'filters', label: 'Filters', endpoint: '/api/apertura/filters', importEndpoint: '/api/apertura/import/filters', table: 'apt_filters' },
+  { key: 'filterwheels', label: 'Filter Wheels', endpoint: '/api/apertura/filterwheels', importEndpoint: '/api/apertura/import/filterwheels', table: 'apt_filter_wheels' },
+  { key: 'accessories', label: 'Accessories', endpoint: '/api/apertura/accessories', importEndpoint: '/api/apertura/import/accessories', table: 'apt_accessories' },
+  { key: 'mounts', label: 'Mounts', endpoint: '/api/apertura/mounts', importEndpoint: '/api/apertura/import/mounts', table: 'apt_mounts' },
+  { key: 'focusers', label: 'Focusers', endpoint: '/api/apertura/focusers', importEndpoint: '/api/apertura/import/focusers', table: 'apt_focusers' },
 ]
 
 const FILTER_TYPE_COLORS = {
@@ -348,6 +348,27 @@ function Apertura() {
   const showToast = (msg) => {
     setToast(msg)
     setTimeout(() => setToast(null), 4000)
+  }
+
+  // ── Inventory item delete ──
+  const handleDeleteItem = async (itemId) => {
+    const currentCat = CATEGORIES.find(c => c.key === activeCategory)
+    if (!currentCat) return
+    try {
+      const res = await fetch('/api/apertura/items/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: currentCat.table, id: itemId })
+      })
+      if (!res.ok) throw new Error('Delete failed')
+      setInventoryData(prev => ({
+        ...prev,
+        [activeCategory]: (prev[activeCategory] || []).filter(i => i.id !== itemId)
+      }))
+      setConfirmDeleteId(null)
+    } catch (err) {
+      console.error('[Apertura] Delete failed:', err.message)
+    }
   }
 
   // ── Inventory CSV import ──
@@ -783,7 +804,24 @@ function Apertura() {
                   <div className="apt-item-grid">
                     {isLoading ? <SkeletonCards /> : items.length === 0 ? (
                       <div className="apt-empty-msg">No {currentCat.label.toLowerCase()} in inventory yet.</div>
-                    ) : items.map(item => <CardComponent key={item.id} item={item} />)}
+                    ) : items.map(item => (
+                      <div key={item.id} className="apt-card-wrapper">
+                        <CardComponent item={item} />
+                        <div className="apt-card-actions">
+                          {confirmDeleteId === item.id ? (
+                            <>
+                              <button className="apt-card-action-btn apt-delete-confirm"
+                                onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id) }}>Delete?</button>
+                              <button className="apt-card-action-btn"
+                                onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null) }}>Cancel</button>
+                            </>
+                          ) : (
+                            <button className="apt-card-action-btn apt-delete-btn"
+                              onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(item.id) }}>×</button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

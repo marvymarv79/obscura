@@ -298,10 +298,10 @@ export default function Mensura() {
           <Link to="/" className="mensura-hub-link">← Hub</Link>
           <Link to="/mensura" className="mensura-logo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" stroke="var(--accent-crimson)" />
+              <circle cx="12" cy="12" r="10" stroke="#7c3aed" />
               <path d="M12 6v6l4 2" stroke="var(--text-primary)" />
             </svg>
-            <span className="mensura-wordmark">Men<span>sura</span></span>
+            <span className="mensura-wordmark">Men<span style={{ color: '#7c3aed' }}>sura</span></span>
           </Link>
         </div>
         <div className="mensura-nav-right">

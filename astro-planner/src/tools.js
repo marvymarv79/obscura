@@ -18,6 +18,6 @@ export const tools = [
     description: 'Build and iterate imaging session plans with filter sequences and exposure recommendations.',
     route: '/mensura',
     status: 'live',
-    accentColor: 'crimson',
+    accentColor: 'violet',
   },
 ]
