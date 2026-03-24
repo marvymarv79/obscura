@@ -1,4 +1,4 @@
-import { db, journalEntries, journalEntryTags, tags } from '../../src/db/index.js'
+import { db, journalEntries, journalEntryTags, tags } from '../../lib/db/index.js'
 import { withAuth } from '../_utils/auth.js'
 import { eq, and } from 'drizzle-orm'
 

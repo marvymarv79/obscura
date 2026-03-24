@@ -1,4 +1,4 @@
-import { db, optics } from '../../src/db/index.js'
+import { db, optics } from '../../lib/db/index.js'
 import { withAuth } from '../_utils/auth.js'
 import { eq, and } from 'drizzle-orm'
 

@@ -1,4 +1,4 @@
-import { db, setups } from '../src/db/index.js'
+import { db, setups } from '../lib/db/index.js'
 import { withAuth } from './_utils/auth.js'
 import { eq } from 'drizzle-orm'
 

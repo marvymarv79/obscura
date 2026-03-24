@@ -1,4 +1,4 @@
-import { db, cameras, optics, setups, locations, journalEntries, tags, journalEntryTags } from '../src/db/index.js'
+import { db, cameras, optics, setups, locations, journalEntries, tags, journalEntryTags } from '../lib/db/index.js'
 import { withAuth } from './_utils/auth.js'
 
 async function handler(req, res, userId) {

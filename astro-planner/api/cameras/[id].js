@@ -1,4 +1,4 @@
-import { db, cameras } from '../../src/db/index.js'
+import { db, cameras } from '../../lib/db/index.js'
 import { withAuth } from '../_utils/auth.js'
 import { eq, and } from 'drizzle-orm'
 

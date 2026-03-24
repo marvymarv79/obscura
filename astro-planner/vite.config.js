@@ -3,14 +3,6 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    exclude: ['drizzle-orm', '@neondatabase/serverless', 'drizzle-orm/neon-http']
-  },
-  build: {
-    rollupOptions: {
-      external: ['drizzle-orm', 'drizzle-orm/neon-http', '@neondatabase/serverless']
-    }
-  },
   server: {
     proxy: {
       '/api': {
