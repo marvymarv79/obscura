@@ -56,47 +56,36 @@ export const setups = pgTable('setups', {
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 })
 
-// Saved imaging plans with snapshot data
-export const imagingPlans = pgTable('imaging_plans', {
+// Plans — uses new 'plans' table (imaging_plans was dropped in Sprint 6)
+export const imagingPlans = pgTable('plans', {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
-  name: varchar('name', { length: 255 }).notNull(),
+  userId: text('user_id').notNull(),
+  name: text('name'),
   planDate: date('plan_date').notNull(),
-  locationName: varchar('location_name', { length: 255 }),
-  latitude: decimal('latitude', { precision: 10, scale: 7 }),
-  longitude: decimal('longitude', { precision: 11, scale: 7 }),
-  // Conditions snapshot
-  moonPhase: varchar('moon_phase', { length: 50 }),
-  moonIllumination: integer('moon_illumination'),
-  seeing: decimal('seeing', { precision: 3, scale: 1 }),
-  transparency: integer('transparency'),
-  cloudCover: integer('cloud_cover'),
-  temperature: decimal('temperature', { precision: 5, scale: 1 }),
-  notes: text('notes'),
-  isArchived: boolean('is_archived').default(false),
-  planSnapshot: jsonb('plan_snapshot'),
+  locationName: text('location_name').notNull(),
+  latitude: decimal('latitude', { precision: 10, scale: 6 }),
+  longitude: decimal('longitude', { precision: 10, scale: 6 }),
+  forecastScore: integer('forecast_score'),
+  utcOffsetMinutes: integer('utc_offset_minutes'),
+  status: text('status').default('draft'),
   completedAt: timestamp('completed_at'),
   journalEntryId: uuid('journal_entry_id'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull()
+  snapshot: jsonb('snapshot'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
 })
 
-// Targets within imaging plans
-export const imagingPlanTargets = pgTable('imaging_plan_targets', {
+// Plan targets — uses new 'plan_targets' table
+export const imagingPlanTargets = pgTable('plan_targets', {
   id: uuid('id').defaultRandom().primaryKey(),
   planId: uuid('plan_id').notNull().references(() => imagingPlans.id, { onDelete: 'cascade' }),
-  targetId: varchar('target_id', { length: 50 }).notNull(), // ID from DSO_DATABASE
-  targetName: varchar('target_name', { length: 255 }).notNull(),
-  priority: integer('priority').notNull().default(1),
-  visibilityScore: integer('visibility_score'),
-  gearScore: integer('gear_score'),
-  // Can reference custom setup OR built-in setup
-  setupId: uuid('setup_id').references(() => setups.id, { onDelete: 'set null' }),
-  defaultSetupId: varchar('default_setup_id', { length: 100 }), // Built-in setup ID
-  transitTime: timestamp('transit_time'),
-  hoursAbove30: decimal('hours_above_30', { precision: 4, scale: 2 }),
-  moonSeparation: decimal('moon_separation', { precision: 5, scale: 1 }),
-  notes: text('notes')
+  targetId: integer('target_id'),
+  position: integer('position').default(0),
+  windowStart: text('window_start'),
+  windowEnd: text('window_end'),
+  imagingTrainId: text('imaging_train_id'),
+  snapshot: jsonb('snapshot'),
+  createdAt: timestamp('created_at').defaultNow()
 })
 
 // User-defined tags for journal entries
@@ -115,10 +104,10 @@ export const journalEntries = pgTable('journal_entries', {
   title: varchar('title', { length: 255 }).notNull(),
   content: text('content'), // Markdown content
   entryDate: date('entry_date').notNull(),
-  imagingPlanId: uuid('imaging_plan_id').references(() => imagingPlans.id, { onDelete: 'set null' }),
+  imagingPlanId: uuid('imaging_plan_id'),
   imagingTrainId: integer('imaging_train_id'), // Apertura profile ID (no FK - separate schema)
   processingSoftware: text('processing_software'), // Comma-separated: "Siril,PixInsight"
-  planId: uuid('plan_id'), // Links to imaging_plans for bidirectional linking
+  planId: uuid('plan_id'), // Links to plans table for bidirectional linking
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 })

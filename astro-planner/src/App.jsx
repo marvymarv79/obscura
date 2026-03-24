@@ -598,10 +598,11 @@ function App() {
   }
 
   // Check watchlist alerts when location and forecast are loaded
+  const forecastScore0 = forecastDays[0]?.score ?? null
   useEffect(() => {
-    if (!isSignedIn || !coords) return
-    const fScore = astropheric ? buildForecastDays(astropheric, kelvinToFahrenheit)[0]?.score : null
-    if (fScore === null || fScore === undefined) { console.warn('[WatchlistBadge] forecastScore is null — badge check may skip') }
+    if (!isSignedIn || !coords || !get) return
+    const fScore = forecastScore0
+    console.log('[WatchlistBadge] Running check, forecastScore:', fScore, 'coords:', !!coords)
     const checkWatchlist = async () => {
       try {
         const params = new URLSearchParams({
@@ -616,7 +617,7 @@ function App() {
       } catch (err) { console.warn('[WatchlistBadge] check failed:', err.message) }
     }
     checkWatchlist()
-  }, [isSignedIn, coords, astropheric]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isSignedIn, coords, forecastScore0, get]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentDewDelta = astropheric ? getDewRisk(astropheric.RDPS_Temperature[0].Value.ActualValue, astropheric.RDPS_DewPoint[0].Value.ActualValue) : null
   // Note: currentDewDelta kept for backward compat; selectedConditions.dewDelta used in conditions card
