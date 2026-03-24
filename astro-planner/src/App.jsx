@@ -623,10 +623,12 @@ function App() {
             <PlansHistory
               plans={savedPlans}
               loading={plansLoading}
-              onViewPlan={handleViewPlan}
+              onSavePlan={handleSavePlan}
               onClonePlan={handleClonePlan}
               onDeletePlan={handleDeletePlan}
               onRefresh={loadPlans}
+              savedLocations={savedLocations}
+              coords={coords}
             />
           )}
 
