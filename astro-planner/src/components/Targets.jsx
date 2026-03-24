@@ -364,7 +364,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                     src={target.preview_url || getDssUrl(target.ra_deg, target.dec_deg, target.maj_axis_arcmin, 96)}
                     alt="" />
                   <div className="tc-left">
-                    <div className="tc-designation">{target.ngc_ic_id}</div>
+                    <div className="tc-designation">{target.messier_number ? `M${target.messier_number} · ${target.ngc_ic_id}` : target.ngc_ic_id}</div>
                     {target.common_name && <div className="tc-common">{target.common_name}</div>}
                     <span className="tc-type-badge" style={{ background: TYPE_COLORS[target.object_type] || '#666' }}>
                       {TYPE_LABELS[target.object_type] || target.object_type}

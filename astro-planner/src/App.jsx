@@ -577,6 +577,25 @@ function App() {
     setJournalTags(prev => prev.filter(t => t.id !== tagId))
   }
 
+  // Check watchlist alerts when location and forecast are loaded
+  useEffect(() => {
+    if (!isSignedIn || !coords || mainTab === 'watchlist') return
+    const fScore = astropheric ? buildForecastDays(astropheric, kelvinToFahrenheit)[0]?.score : null
+    const checkWatchlist = async () => {
+      try {
+        const params = new URLSearchParams({
+          lat: coords.latitude, lng: coords.longitude,
+          forecastScore: fScore || 0
+        })
+        const data = await get(`/api/watchlist/check?${params}`)
+        if (Array.isArray(data) && data.length > 0) {
+          setWatchlistBadge(true)
+        }
+      } catch { /* ignore */ }
+    }
+    checkWatchlist()
+  }, [isSignedIn, coords, astropheric]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const currentDewDelta = astropheric ? getDewRisk(astropheric.RDPS_Temperature[0].Value.ActualValue, astropheric.RDPS_DewPoint[0].Value.ActualValue) : null
   // Note: currentDewDelta kept for backward compat; selectedConditions.dewDelta used in conditions card
 

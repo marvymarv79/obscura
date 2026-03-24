@@ -209,16 +209,47 @@
 .wl-browser-loading, .wl-browser-empty {
   padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;
 }
-.wl-browser-list { overflow-y: auto; max-height: 400px; }
+.wl-browser { width: 520px; max-height: 600px; }
+.wl-browser-search { padding: 8px 16px; border-bottom: 1px solid var(--border-default); }
+.wl-browser-search input {
+  width: 100%; background: var(--bg-base); border: 1px solid var(--border-default);
+  color: var(--text-primary); padding: 6px 10px; border-radius: 4px; font-size: 13px;
+  outline: none;
+}
+.wl-browser-search input:focus { border-color: var(--accent-ember); }
+.wl-browser-types {
+  display: flex; gap: 4px; padding: 8px 16px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-default);
+}
+.wl-type-btn {
+  background: var(--bg-card-hover); border: 1px solid var(--border-default);
+  color: var(--text-muted); padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; cursor: pointer; white-space: nowrap;
+}
+.wl-type-btn.active { border-color: var(--accent-ember); color: var(--accent-ember); }
+.wl-browser-list { overflow-y: auto; max-height: 380px; }
 .wl-browser-item {
-  display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px;
   cursor: pointer; border-bottom: 1px solid var(--border-default);
 }
 .wl-browser-item:hover { background: var(--bg-card-hover); }
-.wl-browser-name { color: var(--text-primary); font-size: 13px; font-weight: 600; }
-.wl-browser-common { color: var(--text-muted); font-size: 11px; flex: 1; }
-.wl-browser-type { font-size: 9px; color: #fff; padding: 1px 5px; border-radius: 3px; }
-.wl-browser-score { font-weight: 600; font-size: 13px; }
+.wl-browser-item.watched { opacity: 0.5; cursor: default; }
+.wl-browser-thumb {
+  width: 36px; height: 36px; border-radius: 4px; object-fit: cover;
+  background: var(--bg-card-hover); flex-shrink: 0;
+}
+.wl-browser-info { flex: 1; min-width: 0; }
+.wl-browser-name { color: var(--text-primary); font-size: 12px; font-weight: 600; display: block; }
+.wl-browser-common { color: var(--text-muted); font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wl-browser-type { font-size: 9px; color: #fff; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+.wl-browser-mag { color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
+.wl-browser-watched { color: var(--accent-green); font-size: 10px; font-weight: 600; flex-shrink: 0; }
+.wl-load-more {
+  display: block; width: 100%; padding: 10px; text-align: center;
+  background: var(--bg-card-hover); border: none; color: var(--accent-ember);
+  font-size: 12px; cursor: pointer;
+}
+.wl-load-more:hover { background: rgba(232, 99, 10, 0.1); }
 
 /* Responsive */
 @media (max-width: 700px) {

@@ -105,6 +105,11 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
   const [showBrowser, setShowBrowser] = useState(false)
   const [browserTargets, setBrowserTargets] = useState([])
   const [browserLoading, setBrowserLoading] = useState(false)
+  const [browserSearch, setBrowserSearch] = useState('')
+  const [browserType, setBrowserType] = useState('all')
+  const [browserOffset, setBrowserOffset] = useState(0)
+  const [browserHasMore, setBrowserHasMore] = useState(false)
+  const [searchTimer, setSearchTimer] = useState(null)
 
   const showToast = (msg) => {
     setToast(msg)
@@ -188,26 +193,54 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
     }
   }
 
-  const openBrowser = async () => {
-    if (!coords) return
-    setShowBrowser(true)
+  const fetchCatalog = useCallback(async (search, type, offset = 0, append = false) => {
     setBrowserLoading(true)
     try {
-      const params = new URLSearchParams({
-        lat: coords.latitude, lng: coords.longitude,
-        date: new Date().toISOString().split('T')[0],
-        minAlt: '25', minScore: '30', type: 'all'
-      })
-      const resp = await fetch(`/api/obscura/targets?${params}`)
+      const params = new URLSearchParams({ limit: '50', offset: String(offset) })
+      if (search) params.set('search', search)
+      if (type && type !== 'all') params.set('type', type)
+      const resp = await fetch(`/api/obscura/catalog?${params}`)
       if (resp.ok) {
         const data = await resp.json()
-        const watchedIds = new Set(entries.map(e => e.target_id))
-        setBrowserTargets(data.filter(t => !watchedIds.has(t.id)))
+        if (append) {
+          setBrowserTargets(prev => [...prev, ...data])
+        } else {
+          setBrowserTargets(data)
+        }
+        setBrowserHasMore(data.length === 50)
+        setBrowserOffset(offset + data.length)
       }
     } catch {
-      setBrowserTargets([])
+      if (!append) setBrowserTargets([])
     }
     setBrowserLoading(false)
+  }, [])
+
+  const openBrowser = () => {
+    setShowBrowser(true)
+    setBrowserSearch('')
+    setBrowserType('all')
+    setBrowserOffset(0)
+    fetchCatalog('', 'all', 0)
+  }
+
+  const handleBrowserSearch = (value) => {
+    setBrowserSearch(value)
+    if (searchTimer) clearTimeout(searchTimer)
+    setSearchTimer(setTimeout(() => {
+      setBrowserOffset(0)
+      fetchCatalog(value, browserType, 0)
+    }, 300))
+  }
+
+  const handleBrowserTypeFilter = (type) => {
+    setBrowserType(type)
+    setBrowserOffset(0)
+    fetchCatalog(browserSearch, type, 0)
+  }
+
+  const loadMoreCatalog = () => {
+    fetchCatalog(browserSearch, browserType, browserOffset, true)
   }
 
   const handleAddToPlan = async (entry) => {
@@ -350,7 +383,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
                     src={entry.preview_url || getDssUrl(entry.ra_deg, entry.dec_deg, entry.maj_axis_arcmin, 80)}
                     alt="" loading="lazy" />
                   <div className="wl-item-info">
-                    <div className="wl-item-name">{entry.ngc_ic_id}</div>
+                    <div className="wl-item-name">{entry.messier_number ? `M${entry.messier_number} · ${entry.ngc_ic_id}` : entry.ngc_ic_id}</div>
                     {entry.common_name && <div className="wl-item-common">{entry.common_name}</div>}
                     <div className="wl-item-meta">
                       <span className="wl-type-badge" style={{ background: TYPE_COLORS[entry.object_type] || '#666' }}>
@@ -386,7 +419,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
                   src={selected.preview_url || getDssUrl(selected.ra_deg, selected.dec_deg, selected.maj_axis_arcmin, 200)}
                   alt="" loading="lazy" />
                 <div className="wr-header-info">
-                  <div className="wr-target-name">{selected.ngc_ic_id}</div>
+                  <div className="wr-target-name">{selected.messier_number ? `M${selected.messier_number} · ${selected.ngc_ic_id}` : selected.ngc_ic_id}</div>
                   {selected.common_name && <div className="wr-common-name">{selected.common_name}</div>}
                   <div className="wr-coords">RA {parseFloat(selected.ra_deg).toFixed(2)}° · Dec {parseFloat(selected.dec_deg).toFixed(2)}°</div>
                   <div className="wr-badges">
@@ -490,30 +523,60 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
         </div>
       </div>
 
-      {/* Target browser modal */}
+      {/* Target catalog browser modal */}
       {showBrowser && (
         <div className="wl-browser-overlay" onClick={() => setShowBrowser(false)}>
           <div className="wl-browser" onClick={(e) => e.stopPropagation()}>
             <div className="wl-browser-header">
               <h4>Add to Watchlist</h4>
-              <button onClick={() => setShowBrowser(false)}>×</button>
+              <button onClick={(e) => { e.stopPropagation(); setShowBrowser(false) }}>×</button>
             </div>
-            {browserLoading ? (
-              <div className="wl-browser-loading">Scoring targets...</div>
+            <div className="wl-browser-search">
+              <input type="text" placeholder="Search by name, catalog number..."
+                value={browserSearch}
+                onChange={(e) => handleBrowserSearch(e.target.value)} />
+            </div>
+            <div className="wl-browser-types">
+              {['all', 'EN', 'Galaxy', 'GCl', 'OCl', 'RN', 'SNR', 'PN'].map(t => (
+                <button key={t}
+                  className={`wl-type-btn ${browserType === t ? 'active' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); handleBrowserTypeFilter(t) }}>
+                  {t === 'all' ? 'All' : TYPE_LABELS[t] || t}
+                </button>
+              ))}
+            </div>
+            {browserLoading && browserTargets.length === 0 ? (
+              <div className="wl-browser-loading">Loading catalog...</div>
             ) : browserTargets.length === 0 ? (
-              <div className="wl-browser-empty">No targets available.</div>
+              <div className="wl-browser-empty">No targets match your search.</div>
             ) : (
               <div className="wl-browser-list">
-                {browserTargets.slice(0, 20).map(t => (
-                  <div key={t.id} className="wl-browser-item" onClick={() => addToWatchlist(t.id)}>
-                    <span className="wl-browser-name">{t.ngc_ic_id}</span>
-                    {t.common_name && <span className="wl-browser-common">{t.common_name}</span>}
-                    <span className="wl-browser-type" style={{ background: TYPE_COLORS[t.object_type] || '#666' }}>
-                      {TYPE_LABELS[t.object_type] || t.object_type}
-                    </span>
-                    <span className="wl-browser-score" style={{ color: getScoreColor(t.score) }}>{t.score}</span>
-                  </div>
-                ))}
+                {browserTargets.map(t => {
+                  const watched = entries.some(e => e.target_id === t.id)
+                  const displayName = t.messier_number ? `M${t.messier_number} · ${t.ngc_ic_id}` : t.ngc_ic_id
+                  return (
+                    <div key={t.id} className={`wl-browser-item ${watched ? 'watched' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); if (!watched) addToWatchlist(t.id) }}>
+                      <img className="wl-browser-thumb" loading="lazy"
+                        src={t.preview_url || getDssUrl(t.ra_deg || 0, t.dec_deg || 0, t.maj_axis_arcmin, 60)}
+                        alt="" />
+                      <div className="wl-browser-info">
+                        <span className="wl-browser-name">{displayName}</span>
+                        {t.common_name && <span className="wl-browser-common">{t.common_name}</span>}
+                      </div>
+                      <span className="wl-browser-type" style={{ background: TYPE_COLORS[t.object_type] || '#666' }}>
+                        {TYPE_LABELS[t.object_type] || t.object_type}
+                      </span>
+                      {t.magnitude && <span className="wl-browser-mag">mag {parseFloat(t.magnitude).toFixed(1)}</span>}
+                      {watched && <span className="wl-browser-watched">Watchlisted ✓</span>}
+                    </div>
+                  )
+                })}
+                {browserHasMore && (
+                  <button className="wl-load-more" onClick={(e) => { e.stopPropagation(); loadMoreCatalog() }}>
+                    {browserLoading ? 'Loading...' : 'Load more'}
+                  </button>
+                )}
               </div>
             )}
           </div>
