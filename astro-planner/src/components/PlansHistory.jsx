@@ -49,6 +49,7 @@ export default function PlansHistory({
 }) {
   const [expandedPlan, setExpandedPlan] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
   // New plan state
   const [planDate, setPlanDate] = useState(() => new Date().toISOString().split('T')[0])
@@ -376,20 +377,33 @@ export default function PlansHistory({
                 <div className="plan-card-details">
                   {plan.notes && <div className="plan-notes"><strong>Notes:</strong> {plan.notes}</div>}
 
-                  {plan.targets && plan.targets.length > 0 && (
+                  {plan.targets && plan.targets.length > 0 ? (
                     <div className="plan-targets-list">
                       {plan.targets.map((t, i) => (
                         <div key={i} className="plan-target-row">
-                          <span className="ptr-name">{t.targetName}</span>
-                          {t.visibilityScore && (
-                            <span className="ptr-score" style={{ color: getScoreColor(t.visibilityScore) }}>
-                              {t.visibilityScore}
-                            </span>
-                          )}
-                          {t.notes && <span className="ptr-train">{t.notes}</span>}
+                          <div className="ptr-header">
+                            <span className="ptr-id">{t.targetId}</span>
+                            <span className="ptr-name">{t.targetName}</span>
+                            {t.visibilityScore && (
+                              <span className="ptr-score" style={{ color: getScoreColor(t.visibilityScore) }}>
+                                {t.visibilityScore}
+                              </span>
+                            )}
+                          </div>
+                          <div className="ptr-meta">
+                            {t.notes && <span className="ptr-train">{t.notes}</span>}
+                            {t.transitTime && (
+                              <span className="ptr-transit">Transit {formatTime(t.transitTime)}</span>
+                            )}
+                            {t.moonSeparation && (
+                              <span className="ptr-moon">Moon {Math.round(t.moonSeparation)}°</span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
+                  ) : (
+                    <div className="plan-targets-empty">No targets in this plan.</div>
                   )}
 
                   <div className="plan-card-actions">
@@ -397,10 +411,23 @@ export default function PlansHistory({
                       onClick={(e) => { e.stopPropagation(); onClonePlan(plan) }}>
                       Clone
                     </button>
-                    <button className="plan-action-button delete"
-                      onClick={(e) => { e.stopPropagation(); onDeletePlan(plan.id) }}>
-                      Delete
-                    </button>
+                    {confirmDeleteId === plan.id ? (
+                      <>
+                        <button className="plan-action-button delete"
+                          onClick={(e) => { e.stopPropagation(); onDeletePlan(plan.id); setConfirmDeleteId(null) }}>
+                          Delete?
+                        </button>
+                        <button className="plan-action-button cancel"
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null) }}>
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button className="plan-action-button delete"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(plan.id) }}>
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

@@ -9,19 +9,28 @@ async function handler(req, res, userId) {
         // Get all plans for user, optionally filter by archived status
         const { archived } = req.query
 
-        let query = db.select()
+        const plans = await db.select()
           .from(imagingPlans)
           .where(eq(imagingPlans.userId, userId))
           .orderBy(desc(imagingPlans.planDate))
-
-        const plans = await query
 
         // Filter by archived if specified
         const filteredPlans = archived !== undefined
           ? plans.filter(p => p.isArchived === (archived === 'true'))
           : plans
 
-        return res.status(200).json(filteredPlans)
+        // Include targets for each plan
+        const plansWithTargets = await Promise.all(
+          filteredPlans.map(async (plan) => {
+            const targets = await db.select()
+              .from(imagingPlanTargets)
+              .where(eq(imagingPlanTargets.planId, plan.id))
+              .orderBy(imagingPlanTargets.priority)
+            return { ...plan, targets }
+          })
+        )
+
+        return res.status(200).json(plansWithTargets)
       }
 
       case 'POST': {
