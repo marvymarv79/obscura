@@ -656,6 +656,7 @@ function App() {
                 selectedTargets={selectedTargets}
                 locationName={locationName || savedLocations.find(l => coords && parseFloat(l.latitude) === coords.latitude && parseFloat(l.longitude) === coords.longitude)?.name}
                 onPlanCreated={loadPlans}
+                onAddToPlan={handleSavePlan}
                 onSelectTarget={(targetData) => {
                   if (selectedTargets.some(t => t.id === targetData.id)) {
                     setSelectedTargets(prev => prev.filter(t => t.id !== targetData.id))

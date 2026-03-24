@@ -312,98 +312,120 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
     }]
   }
 
-  // Mono camera — divide by altitude zones
-  const ra = parseFloat(target.ra_deg)
-  const dec = parseFloat(target.dec_deg)
-  const stepMs = 5 * 60 * 1000
+  // Mono camera — divide window into filter blocks by time proportion
+  const isNarrowband = target.best_imaging_type === 'narrowband'
+  const totalMs = end.getTime() - start.getTime()
   const blocks = []
 
-  // Classify each 5-minute slot
-  const slots = []
-  for (let t = start.getTime(); t < end.getTime(); t += stepMs) {
-    const dt = new Date(t)
-    // We need lat/lng but don't have it here — use transit time to estimate altitude
-    // Since we don't have location, use the transit time to infer altitude pattern
-    // Approximate: altitude is highest at transit, lower before/after
-    const hoursFromTransit = Math.abs(dt.getTime() - transitTime.getTime()) / 3600000
-    // Rough altitude based on distance from transit
-    // Max alt is at transit; drops ~15° per hour away from transit (rough)
-    const transitAlt = 90 // we don't know exact, but we know the pattern
-    // Use a simplified model: categorize by time from transit
-    let zone
-    if (hoursFromTransit <= 1.0) zone = 'high'      // ≥ 60°
-    else if (hoursFromTransit <= 2.5) zone = 'mid'   // 45-59°
-    else zone = 'low'                                  // 35-44°
-
-    slots.push({ time: dt, zone })
+  // Filter sequence ordered by priority (best seeing first)
+  // Sorted by distance from transit: closest to transit = first filter
+  let filterPlan
+  if (isNarrowband) {
+    // Narrowband: L near transit, OIII next, Ha at edges, SII last
+    filterPlan = [
+      { filter: 'L', pct: 0.25, subLen: 300 },
+      { filter: 'OIII', pct: 0.25, subLen: 300 },
+      { filter: 'Ha', pct: 0.30, subLen: 300 },
+      { filter: 'SII', pct: 0.20, subLen: 300 }
+    ]
+  } else {
+    // Broadband/LRGB: L near transit, B when high, G mid, R lowest
+    filterPlan = [
+      { filter: 'L', pct: 0.35, subLen: 300 },
+      { filter: 'B', pct: 0.20, subLen: 180 },
+      { filter: 'G', pct: 0.20, subLen: 180 },
+      { filter: 'R', pct: 0.25, subLen: 180 }
+    ]
   }
 
-  // Group consecutive slots of same zone
-  const groups = []
-  let current = null
-  for (const slot of slots) {
-    if (!current || current.zone !== slot.zone) {
-      if (current) groups.push(current)
-      current = { zone: slot.zone, start: slot.time, end: slot.time, count: 1 }
-    } else {
-      current.end = slot.time
-      current.count++
+  // Sort slots by distance from transit — closest first
+  // Then assign filter blocks in priority order around transit
+  const transitMs = transitTime.getTime()
+  const windowStartMs = start.getTime()
+
+  // Determine if transit is before, during, or after window
+  const transitInWindow = transitMs >= windowStartMs && transitMs <= end.getTime()
+
+  if (transitInWindow) {
+    // Split: filters before transit (ascending) and after (descending)
+    // Center L on transit, spread others outward
+    let cursor = windowStartMs
+    const preDuration = transitMs - windowStartMs
+    const postDuration = end.getTime() - transitMs
+
+    // Assign filters: L centered on transit, others spread outward
+    // Pre-transit: last filters first (R at start, G, B closer to transit)
+    // Post-transit: same order reversed (B, G, R)
+    const preFilters = [...filterPlan].reverse() // R, G, B, L
+    const postFilters = [...filterPlan].slice(1) // B, G, R (skip L)
+
+    // L block centered on transit
+    const lPlan = filterPlan[0]
+    const lMs = Math.round(totalMs * lPlan.pct)
+    const lStart = Math.max(windowStartMs, transitMs - lMs / 2)
+    const lEnd = Math.min(end.getTime(), lStart + lMs)
+    blocks.push({
+      filter: lPlan.filter,
+      start: formatTime(new Date(lStart)),
+      end: formatTime(new Date(lEnd)),
+      subLength: lPlan.subLen,
+      estimatedSubs: Math.floor((lEnd - lStart) / 1000 / lPlan.subLen)
+    })
+
+    // Pre-transit blocks (before L block)
+    const preMs = lStart - windowStartMs
+    if (preMs > 60000) {
+      const preItems = filterPlan.slice(1).reverse() // R, G, B
+      let preCursor = windowStartMs
+      for (let i = 0; i < preItems.length && preCursor < lStart; i++) {
+        const share = preItems[i].pct / preItems.reduce((s, p) => s + p.pct, 0)
+        const blockMs = Math.min(Math.round(preMs * share), lStart - preCursor)
+        if (blockMs < 60000) continue
+        blocks.push({
+          filter: preItems[i].filter,
+          start: formatTime(new Date(preCursor)),
+          end: formatTime(new Date(preCursor + blockMs)),
+          subLength: preItems[i].subLen,
+          estimatedSubs: Math.floor(blockMs / 1000 / preItems[i].subLen)
+        })
+        preCursor += blockMs
+      }
     }
-  }
-  if (current) groups.push(current)
 
-  // Assign filters based on target type + camera type
-  const isNarrowband = target.best_imaging_type === 'narrowband'
-  // For broadband/lrgb targets: L, R, G, B
-  // For narrowband targets: Ha, SII, OIII (+ L at transit)
-
-  const midGroups = groups.filter(g => g.zone === 'mid')
-  const lowGroups = groups.filter(g => g.zone === 'low')
-
-  // Sort mid groups by proximity to transit (closest gets priority filter)
-  midGroups.sort((a, b) => {
-    const aDist = Math.abs((a.start.getTime() + a.end.getTime()) / 2 - transitTime.getTime())
-    const bDist = Math.abs((b.start.getTime() + b.end.getTime()) / 2 - transitTime.getTime())
-    return aDist - bDist
-  })
-
-  const midFilters = isNarrowband ? ['B', 'OIII', 'G'] : ['B', 'G', 'G']
-  const lowFilters = isNarrowband ? ['Ha', 'SII', 'R'] : ['R', 'R', 'R']
-
-  for (const group of groups) {
-    const blockEnd = new Date(group.end.getTime() + stepMs)
-    const durationSec = (blockEnd.getTime() - group.start.getTime()) / 1000
-
-    if (group.zone === 'high') {
+    // Post-transit blocks (after L block)
+    const postMs = end.getTime() - lEnd
+    if (postMs > 60000) {
+      const postItems = filterPlan.slice(1) // B, G, R
+      let postCursor = lEnd
+      for (let i = 0; i < postItems.length && postCursor < end.getTime(); i++) {
+        const share = postItems[i].pct / postItems.reduce((s, p) => s + p.pct, 0)
+        const blockMs = Math.min(Math.round(postMs * share), end.getTime() - postCursor)
+        if (blockMs < 60000) continue
+        blocks.push({
+          filter: postItems[i].filter,
+          start: formatTime(new Date(postCursor)),
+          end: formatTime(new Date(postCursor + blockMs)),
+          subLength: postItems[i].subLen,
+          estimatedSubs: Math.floor(blockMs / 1000 / postItems[i].subLen)
+        })
+        postCursor += blockMs
+      }
+    }
+  } else {
+    // Transit outside window — assign proportionally in order
+    let cursor = windowStartMs
+    for (const plan of filterPlan) {
+      const blockMs = Math.round(totalMs * plan.pct)
+      if (blockMs < 60000) continue
+      const blockEnd = Math.min(cursor + blockMs, end.getTime())
       blocks.push({
-        filter: 'L',
-        start: formatTime(group.start),
-        end: formatTime(blockEnd),
-        subLength: 300,
-        estimatedSubs: Math.floor(durationSec / 300)
+        filter: plan.filter,
+        start: formatTime(new Date(cursor)),
+        end: formatTime(new Date(blockEnd)),
+        subLength: plan.subLen,
+        estimatedSubs: Math.floor((blockEnd - cursor) / 1000 / plan.subLen)
       })
-    } else if (group.zone === 'mid') {
-      const idx = midGroups.indexOf(group)
-      const filter = midFilters[Math.min(idx, midFilters.length - 1)]
-      const subLen = (filter === 'OIII' || filter === 'Ha' || filter === 'SII') ? 300 : 180
-      blocks.push({
-        filter,
-        start: formatTime(group.start),
-        end: formatTime(blockEnd),
-        subLength: subLen,
-        estimatedSubs: Math.floor(durationSec / subLen)
-      })
-    } else {
-      const idx = lowGroups.indexOf(group)
-      const filter = lowFilters[Math.min(idx, lowFilters.length - 1)]
-      const subLen = (filter === 'Ha' || filter === 'SII' || filter === 'OIII') ? 300 : 180
-      blocks.push({
-        filter,
-        start: formatTime(group.start),
-        end: formatTime(blockEnd),
-        subLength: subLen,
-        estimatedSubs: Math.floor(durationSec / subLen)
-      })
+      cursor = blockEnd
     }
   }
 

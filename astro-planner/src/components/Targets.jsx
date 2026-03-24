@@ -151,7 +151,7 @@ function AltitudeChart({ altitudeCurve, imagingWindow, filterSequence, minAlt })
   )
 }
 
-export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated }) {
+export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated, onAddToPlan }) {
   const [targets, setTargets] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -237,52 +237,32 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
   }
 
   const addToPlan = async (target, detail) => {
-    if (!coords) return
+    if (!coords || !onAddToPlan) {
+      showToast('Could not add to plan — try again')
+      return
+    }
     const tonight = new Date().toISOString().split('T')[0]
     try {
-      // Try to find existing plan for tonight
-      const plansResp = await fetch('/api/plans', {
-        headers: { 'Content-Type': 'application/json' }
-      })
-      let existingPlan = null
-      if (plansResp.ok) {
-        const plans = await plansResp.json()
-        existingPlan = plans.find(p => p.planDate === tonight)
-      }
-
-      const targetEntry = {
-        targetId: target.ngc_ic_id,
-        targetName: target.common_name || target.ngc_ic_id,
-        priority: 1,
-        visibilityScore: detail.score,
-        defaultSetupId: detail.bestTrainId ? String(detail.bestTrainId) : null,
-        transitTime: detail.transitTime || null,
-        moonSeparation: detail.moonSeparation || null,
-        notes: detail.bestTrainName || null
-      }
-
-      // Create new plan with this target
       const planData = {
         name: `Session ${tonight}`,
         planDate: tonight,
         locationName: locationName || 'Unknown',
         latitude: coords.latitude,
         longitude: coords.longitude,
-        targets: [targetEntry]
+        targets: [{
+          targetId: target.ngc_ic_id,
+          targetName: target.common_name || target.ngc_ic_id,
+          priority: 1,
+          visibilityScore: detail.score,
+          defaultSetupId: detail.bestTrainId ? String(detail.bestTrainId) : null,
+          transitTime: detail.transitTime || null,
+          moonSeparation: detail.moonSeparation || null,
+          notes: detail.bestTrainName || null
+        }]
       }
-
-      const resp = await fetch('/api/plans', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(planData)
-      })
-
-      if (resp.ok) {
-        showToast('Added to tonight\'s plan')
-        if (onPlanCreated) onPlanCreated()
-      } else {
-        showToast('Could not add to plan — try again')
-      }
+      await onAddToPlan(planData)
+      showToast('Added to tonight\'s plan')
+      if (onPlanCreated) onPlanCreated()
     } catch (e) {
       showToast('Could not add to plan — try again')
     }
