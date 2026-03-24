@@ -1,10 +1,16 @@
 /*
  * IMPORTANT: Buttons inside clickable parent cards
  * MUST call e.stopPropagation() on their onClick handler.
+ *
+ * IMPORTANT: All authenticated API calls MUST use the get()/post()
+ * functions from useApi() hook — NOT bare fetch(). The useApi hook
+ * attaches Clerk's Bearer token. Without it, all API calls return 401.
+ * Only use bare fetch() for unauthenticated endpoints (e.g. catalog).
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useUser, UserButton, SignedIn, SignedOut } from '@clerk/clerk-react'
+import { useApi } from './hooks/useApi'
 import './Mensura.css'
 
 const TYPE_COLORS = {
@@ -41,14 +47,12 @@ function targetName(t) {
   return m ? `M${m} · ${ngc}` : ngc
 }
 
-async function apiFetch(url, opts = {}) {
-  const res = await fetch(url, opts)
-  if (!res.ok) { const text = await res.text(); throw new Error('API error ' + res.status + ': ' + text) }
-  return res.json()
-}
+// apiFetch removed — use get/post from useApi hook for authenticated calls
+// For unauthenticated calls (catalog), use plain fetch
 
 export default function Mensura() {
   const { user, isSignedIn } = useUser()
+  const { get, post } = useApi()
   const [plans, setPlans] = useState([])
   const [selectedPlanId, setSelectedPlanId] = useState(null)
   const [planDetail, setPlanDetail] = useState(null)
@@ -71,14 +75,14 @@ export default function Mensura() {
   const [catalogOffset, setCatalogOffset] = useState(0)
   const searchTimer = useRef(null)
 
-  // Load plans
+  // Load plans — uses get() from useApi for Clerk auth
   const loadPlans = useCallback(async () => {
     try {
-      const data = await apiFetch('/api/mensura/plans')
+      const data = await get('/api/mensura/plans')
       setPlans(Array.isArray(data) ? data : [])
     } catch { setPlans([]) }
     setLoading(false)
-  }, [])
+  }, [get])
 
   useEffect(() => { if (isSignedIn) loadPlans() }, [isSignedIn, loadPlans])
 
@@ -92,12 +96,12 @@ export default function Mensura() {
   // Load plan detail
   const loadPlanDetail = useCallback(async (planId) => {
     try {
-      const data = await apiFetch(`/api/mensura/plans/${planId}`)
+      const data = await get(`/api/mensura/plans/${planId}`)
       setPlanDetail(data.plan || data)
       setPlanTargets(data.targets || [])
       setPlanName(data.plan?.name || data.name || `Session ${data.plan?.plan_date || data.plan_date || ''}`)
     } catch (err) { console.error('Load plan detail error:', err) }
-  }, [])
+  }, [get])
 
   const selectPlan = (plan) => {
     setSelectedPlanId(plan.id)
@@ -109,16 +113,12 @@ export default function Mensura() {
   const handleNewPlan = async () => {
     try {
       const today = new Date().toISOString().split('T')[0]
-      const data = await apiFetch('/api/mensura/plans', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data = await post('/api/mensura/plans', {
           plan_date: today,
           location_name: 'Home - Midland',
           latitude: 32.04,
           longitude: -102.14,
           utc_offset_minutes: -300
-        })
       })
       await loadPlans()
       selectPlan(data)
@@ -131,11 +131,7 @@ export default function Mensura() {
     if (!planDetail) return
     setSaving(true)
     try {
-      await apiFetch('/api/mensura/plans/save-snapshot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: planDetail.id })
-      })
+      await post('/api/mensura/plans/save-snapshot', { id: planDetail.id })
       await loadPlanDetail(planDetail.id)
       await loadPlans()
       showToast('Plan saved')
@@ -147,11 +143,7 @@ export default function Mensura() {
   const handleComplete = async () => {
     if (!planDetail) return
     try {
-      await apiFetch('/api/mensura/plans/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: planDetail.id })
-      })
+      await post('/api/mensura/plans/complete', { id: planDetail.id })
       setJournalPrompt(planDetail)
       await loadPlanDetail(planDetail.id)
       await loadPlans()
@@ -162,11 +154,7 @@ export default function Mensura() {
   const handleEdit = async () => {
     if (!planDetail) return
     try {
-      await apiFetch('/api/mensura/plans/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: planDetail.id, status: 'draft' })
-      })
+      await post('/api/mensura/plans/update', { id: planDetail.id, status: 'draft' })
       await loadPlanDetail(planDetail.id)
       await loadPlans()
     } catch (err) { console.error('Edit error:', err) }
@@ -176,11 +164,7 @@ export default function Mensura() {
   const handleNameBlur = async () => {
     if (!planDetail || planName === planDetail.name) return
     try {
-      await apiFetch('/api/mensura/plans/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: planDetail.id, name: planName })
-      })
+      await post('/api/mensura/plans/update', { id: planDetail.id, name: planName })
       await loadPlans()
     } catch {}
   }
@@ -189,11 +173,7 @@ export default function Mensura() {
   const handleDeletePlan = async () => {
     if (!planDetail) return
     try {
-      await apiFetch('/api/mensura/plans/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: planDetail.id })
-      })
+      await post('/api/mensura/plans/delete', { id: planDetail.id })
       setPlanDetail(null)
       setPlanTargets([])
       setSelectedPlanId(null)
@@ -207,11 +187,7 @@ export default function Mensura() {
     if (!planDetail) return
     setShowCatalog(false)
     try {
-      await apiFetch('/api/mensura/plan-targets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan_id: planDetail.id, target_id: target.id })
-      })
+      await post('/api/mensura/plan-targets', { plan_id: planDetail.id, target_id: target.id })
       await loadPlanDetail(planDetail.id)
       showToast('Target added')
     } catch (err) { console.error('Add target error:', err) }
@@ -220,11 +196,7 @@ export default function Mensura() {
   // Remove target
   const handleRemoveTarget = async (ptId) => {
     try {
-      await apiFetch('/api/mensura/plan-targets/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: ptId })
-      })
+      await post('/api/mensura/plan-targets/delete', { id: ptId })
       setConfirmDeleteTarget(null)
       await loadPlanDetail(planDetail.id)
     } catch (err) { console.error('Remove target error:', err) }
@@ -233,11 +205,7 @@ export default function Mensura() {
   // Recompute target
   const handleRecompute = async (pt) => {
     try {
-      await apiFetch('/api/mensura/plan-targets/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: pt.id, window_start: pt.window_start, window_end: pt.window_end, imaging_train_id: pt.imaging_train_id })
-      })
+      await post('/api/mensura/plan-targets/update', { id: pt.id, window_start: pt.window_start, window_end: pt.window_end, imaging_train_id: pt.imaging_train_id })
       await loadPlanDetail(planDetail.id)
       showToast('Recomputed')
     } catch (err) { console.error('Recompute error:', err) }
@@ -250,7 +218,8 @@ export default function Mensura() {
       const params = new URLSearchParams({ limit: '50', offset: String(offset) })
       if (search) params.set('search', search)
       if (type && type !== 'all') params.set('type', type)
-      const data = await apiFetch(`/api/obscura/catalog?${params}`)
+      const res = await fetch(`/api/obscura/catalog?${params}`)
+      const data = res.ok ? await res.json() : []
       if (offset === 0) setCatalogResults(data)
       else setCatalogResults(prev => [...prev, ...data])
     } catch { setCatalogResults([]) }
@@ -573,11 +542,8 @@ export default function Mensura() {
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
                                   const newId = e.target.value || null
-                                  apiFetch('/api/mensura/plan-targets/update', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ id: pt.id, imaging_train_id: newId })
-                                  }).then(() => loadPlanDetail(planDetail.id))
+                                  post('/api/mensura/plan-targets/update', { id: pt.id, imaging_train_id: newId })
+                                    .then(() => loadPlanDetail(planDetail.id))
                                 }}>
                                 <option value="">Auto</option>
                                 {imagingTrains.map(t => <option key={t.id} value={t.id}>{t.profile_name}</option>)}
