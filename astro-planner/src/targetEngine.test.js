@@ -138,16 +138,18 @@ console.log('\n=== Test 4: getFilterSequence — narrowband + mono ===')
     // Narrowband should NOT have L
     assert('no L filter in narrowband', !filters.includes('L'))
 
-    // Should have Ha, SII, OIII
+    // Should have Ha, OIII, SII in that order
     assert('has Ha', filters.includes('Ha'))
-    assert('has SII', filters.includes('SII'))
     assert('has OIII', filters.includes('OIII'))
+    assert('has SII', filters.includes('SII'))
+    assert('order is Ha → OIII → SII',
+      filters[0] === 'Ha' && filters[1] === 'OIII' && filters[2] === 'SII')
 
-    // Check all blocks have required fields
+    // All blocks must have positive duration and subs
     const allValid = blocks.every(b =>
-      b.filter && b.start && b.end && b.subLength > 0 && b.estimatedSubs >= 0
+      b.filter && b.start && b.end && b.subLength > 0 && b.estimatedSubs > 0
     )
-    assert('all blocks have required fields', allValid)
+    assert('all blocks have required fields and subs > 0', allValid)
   }
 }
 

@@ -328,25 +328,24 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
   // Build blocks working outward from transit
   let filterBlocks
   if (isNarrowband) {
-    // Narrowband: Ha near transit (40%), OIII before (30%), SII after (30%)
-    const haDur = Math.round(totalMs * 0.40)
-    const oiiiDur = Math.round(totalMs * 0.30)
-    // Ha centered on transit
-    let haStart = Math.max(startMs, transitMs - Math.round(haDur / 2))
-    let haEnd = Math.min(endMs, haStart + haDur)
-    // Adjust if clamped
-    if (haEnd - haStart < haDur) haStart = Math.max(startMs, haEnd - haDur)
-    // OIII before Ha
-    const oiiiStart = startMs
-    const oiiiEnd = haStart
-    // SII after Ha
-    const siiStart = haEnd
+    // Narrowband: split window into thirds — Ha (rising), OIII (peak), SII (setting)
+    // Minimum 5min (1 sub) per filter; skip entirely if window < 15min
+    if (totalMs < 15 * 60 * 1000) return []
+
+    const haDur = Math.round(totalMs / 3)
+    const oiiiDur = Math.round(totalMs / 3)
+
+    const haStart = startMs
+    const haEnd = haStart + haDur
+    const oiiiStart = haEnd
+    const oiiiEnd = oiiiStart + oiiiDur
+    const siiStart = oiiiEnd
     const siiEnd = endMs
 
     filterBlocks = []
-    if (oiiiEnd > oiiiStart) filterBlocks.push({ filter: 'OIII', subLen: 300, s: oiiiStart, e: oiiiEnd })
-    if (haEnd > haStart) filterBlocks.push({ filter: 'Ha', subLen: 300, s: haStart, e: haEnd })
-    if (siiEnd > siiStart) filterBlocks.push({ filter: 'SII', subLen: 300, s: siiStart, e: siiEnd })
+    filterBlocks.push({ filter: 'Ha', subLen: 300, s: haStart, e: haEnd })
+    filterBlocks.push({ filter: 'OIII', subLen: 300, s: oiiiStart, e: oiiiEnd })
+    filterBlocks.push({ filter: 'SII', subLen: 300, s: siiStart, e: siiEnd })
   } else {
     // Broadband LRGB: L covers transit (extends to include it),
     // then B, G, R fill remaining time after L
