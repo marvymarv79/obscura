@@ -28,6 +28,7 @@ import GearEditor from './GearEditor'
 import PlansHistory from './components/PlansHistory'
 import Journal from './components/Journal'
 import SavePlanModal from './components/SavePlanModal'
+import Targets from './components/Targets'
 
 const GEAR_MATCH_THRESHOLD = 60
 
@@ -622,10 +623,12 @@ function App() {
             <PlansHistory
               plans={savedPlans}
               loading={plansLoading}
-              onViewPlan={handleViewPlan}
+              onSavePlan={handleSavePlan}
               onClonePlan={handleClonePlan}
               onDeletePlan={handleDeletePlan}
               onRefresh={loadPlans}
+              savedLocations={savedLocations}
+              coords={coords}
             />
           )}
 
@@ -644,77 +647,21 @@ function App() {
             />
           )}
 
-          {/* Targets Tab (promoted from sub-tab) */}
+          {/* Targets Tab (API-backed) */}
           {mainTab === 'targets' && (
             <div className="tab-content">
-              {coords && moon ? (
-                <div className="targets-section">
-                  <div className="targets-header">
-                    <h3>Recommended Targets</h3>
-                    <button className="filter-toggle" onClick={() => setShowTargetFilters(!showTargetFilters)}>{showTargetFilters ? 'Hide Filters' : 'Filters'}</button>
-                  </div>
-                  {showTargetFilters && (
-                    <div className="target-filters">
-                      <div className="filter-group">
-                        <label>Filter by Gear (score ≥{GEAR_MATCH_THRESHOLD}):</label>
-                        <select value={targetFilters.gearSetup || ''} onChange={(e) => setTargetFilters(prev => ({ ...prev, gearSetup: e.target.value || null }))}>
-                          <option value="">All Gear</option>
-                          {IMAGING_SETUPS.map(setup => (<option key={setup.id} value={setup.id}>{setup.name}</option>))}
-                        </select>
-                      </div>
-                      <div className="filter-group">
-                        <label>Type:</label>
-                        <div className="filter-chips">{Object.values(TARGET_TYPES).map(type => (<button key={type} className={`filter-chip ${targetFilters.types.includes(type) ? 'active' : ''}`} onClick={() => toggleTypeFilter(type)}>{type}</button>))}</div>
-                      </div>
-                      <div className="filter-group">
-                        <label>Recommended Focal Length:</label>
-                        <select value={targetFilters.focalLength || ''} onChange={(e) => setTargetFilters(prev => ({ ...prev, focalLength: e.target.value || null }))}><option value="">All</option>{Object.values(FOCAL_LENGTH).map(fl => (<option key={fl} value={fl}>{fl}</option>))}</select>
-                      </div>
-                      <div className="filter-group">
-                        <label>Min Visibility Score: {targetFilters.minScore}</label>
-                        <input type="range" min="0" max="80" value={targetFilters.minScore} onChange={(e) => setTargetFilters(prev => ({ ...prev, minScore: parseInt(e.target.value) }))} />
-                      </div>
-                    </div>
-                  )}
-                  <div className="targets-count">
-                    Showing {targets.length} of {DSO_DATABASE.length} targets
-                    {targetFilters.gearSetup && <span className="gear-filter-badge"> for {IMAGING_SETUPS.find(s => s.id === targetFilters.gearSetup)?.name}</span>}
-                    {selectedTargets.length > 0 && <span className="selected-count"> &bull; {selectedTargets.length} selected</span>}
-                  </div>
-                  <div className="targets-grid">
-                    {targets.slice(0, 30).map((item) => {
-                      const { target, score, gearScore, bestSetup, currentAltitude, currentAzimuth, moonSeparation, hoursAbove30, isGoodMonth } = item
-                      const isSelected = isTargetSelected(target.id)
-                      const lastImaged = getLastImaged(target.id)
-                      return (
-                        <div key={target.id} className={`target-card ${isGoodMonth ? 'in-season' : ''} ${isSelected ? 'selected' : ''}`} onClick={() => toggleTargetSelection(item)}>
-                          <div className="target-select-indicator">{isSelected ? '✓' : '+'}</div>
-                          <div className="target-header">
-                            <div className="target-name">{target.name}</div>
-                            <div className="target-scores">
-                              <div className="score-badge" style={{ background: getScoreColor(score) }} title="Visibility">{score}</div>
-                              <div className="score-badge gear-score" style={{ background: getScoreColor(gearScore) }} title="Gear">{gearScore}</div>
-                            </div>
-                          </div>
-                          <div className="target-type-line"><span className="target-type">{target.type}</span><span className="target-constellation">{target.constellation}</span></div>
-                          <div className="target-details">
-                            <div className="target-detail"><span className="detail-label">Alt</span><span className="detail-value" style={{ color: getScoreColor(currentAltitude > 30 ? 70 : currentAltitude > 15 ? 50 : 20) }}>{Math.round(currentAltitude)}°</span></div>
-                            <div className="target-detail"><span className="detail-label">Az</span><span className="detail-value">{getCardinalDirection(currentAzimuth)}</span></div>
-                            <div className="target-detail"><span className="detail-label">Moon</span><span className="detail-value" style={{ color: getMoonSeparationColor(moonSeparation) }}>{Math.round(moonSeparation)}°</span></div>
-                            <div className="target-detail"><span className="detail-label">Hrs</span><span className="detail-value">{hoursAbove30.toFixed(1)}</span></div>
-                          </div>
-                          <div className="target-meta"><span className="target-size">{target.size.width}&prime; &times; {target.size.height}&prime;</span><span className="target-mag">mag {target.magnitude}</span></div>
-                          {bestSetup && <div className="target-best-setup">Best: {bestSetup.setup.name} ({bestSetup.fovFit.fillPercent.toFixed(0)}% fill)</div>}
-                          {lastImaged && <div className="target-last-imaged">Last imaged: {formatLastImaged(lastImaged)}</div>}
-                          {target.description && <div className="target-description">{target.description}</div>}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="empty-state"><p>Load a location from the Tonight tab to see target recommendations.</p></div>
-              )}
+              <Targets
+                coords={coords}
+                moon={moon}
+                selectedTargets={selectedTargets}
+                onSelectTarget={(targetData) => {
+                  if (selectedTargets.some(t => t.id === targetData.id)) {
+                    setSelectedTargets(prev => prev.filter(t => t.id !== targetData.id))
+                  } else {
+                    setSelectedTargets(prev => [...prev, { ...targetData, priority: prev.length + 1 }])
+                  }
+                }}
+              />
             </div>
           )}
 
