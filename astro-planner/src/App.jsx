@@ -29,6 +29,7 @@ import PlansHistory from './components/PlansHistory'
 import Journal from './components/Journal'
 import SavePlanModal from './components/SavePlanModal'
 import Targets from './components/Targets'
+import Watchlist from './components/Watchlist'
 
 const GEAR_MATCH_THRESHOLD = 60
 
@@ -56,6 +57,8 @@ function App() {
   const [showTargetFilters, setShowTargetFilters] = useState(false)
   const [selectedTargets, setSelectedTargets] = useState([])
   const [activeSetups, setActiveSetups] = useState([])
+  const [watchlistBadge, setWatchlistBadge] = useState(false)
+  const [watchedTargetIds, setWatchedTargetIds] = useState(new Set())
   const [logEntries, setLogEntries] = useState([])
   const [customGear, setCustomGear] = useState({ cameras: [], optics: [], setups: [] })
   const [selectedDay, setSelectedDay] = useState(0)
@@ -147,6 +150,14 @@ function App() {
 
       // Load journal
       loadJournal()
+
+      // Load watchlist IDs
+      try {
+        const wl = await get('/api/watchlist')
+        if (Array.isArray(wl)) {
+          setWatchedTargetIds(new Set(wl.map(e => e.target_id)))
+        }
+      } catch { /* ignore */ }
 
     } catch (error) {
       console.error('Failed to load user data:', error)
@@ -604,6 +615,9 @@ function App() {
           </div>
           <div className="nav-center">
             <button className={`nav-pill ${mainTab === 'tonight' ? 'active' : ''}`} onClick={() => { setMainTab('tonight'); setActiveTab('weather') }}>Tonight</button>
+            <button className={`nav-pill ${mainTab === 'watchlist' ? 'active' : ''}`} onClick={() => { setMainTab('watchlist'); setWatchlistBadge(false) }}>
+              Watchlist {watchlistBadge && <span className="pill-dot" />}
+            </button>
             <button className={`nav-pill ${mainTab === 'targets' ? 'active' : ''}`} onClick={() => setMainTab('targets')}>
               Targets {targets.length > 0 && <span className="pill-badge">{targets.length}</span>}
             </button>
@@ -617,6 +631,21 @@ function App() {
         </nav>
 
         <div className="content">
+          {/* Watchlist Tab */}
+          {mainTab === 'watchlist' && (
+            <div className="tab-content">
+              <Watchlist
+                get={get}
+                post={post}
+                coords={coords}
+                utcOffsetMinutes={astropheric?.UTCMinuteOffset != null ? -astropheric.UTCMinuteOffset : (coords ? Math.round(coords.longitude / 15) * 60 : 0)}
+                forecastScore={null}
+                onAddToPlan={handleSavePlan}
+                onPlanCreated={loadPlans}
+              />
+            </div>
+          )}
+
           {/* Plans Tab */}
           {mainTab === 'plans' && (
             <PlansHistory
@@ -655,6 +684,14 @@ function App() {
                 selectedTargets={selectedTargets}
                 locationName={coords?.locationName || locationName || savedLocations.find(l => coords && parseFloat(l.latitude) === coords.latitude && parseFloat(l.longitude) === coords.longitude)?.name}
                 utcOffsetMinutes={astropheric?.UTCMinuteOffset != null ? -astropheric.UTCMinuteOffset : (coords ? Math.round(coords.longitude / 15) * 60 : 0)}
+                post={post}
+                watchedTargetIds={watchedTargetIds}
+                onWatchlistAdd={async () => {
+                  try {
+                    const wl = await get('/api/watchlist')
+                    if (Array.isArray(wl)) setWatchedTargetIds(new Set(wl.map(e => e.target_id)))
+                  } catch { /* ignore */ }
+                }}
                 onPlanCreated={loadPlans}
                 onAddToPlan={handleSavePlan}
                 onSelectTarget={(targetData) => {

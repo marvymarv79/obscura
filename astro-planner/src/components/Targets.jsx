@@ -151,7 +151,13 @@ function AltitudeChart({ altitudeCurve, imagingWindow, filterSequence, minAlt })
   )
 }
 
-export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated, onAddToPlan, utcOffsetMinutes }) {
+function getDssUrl(raDeg, decDeg, majAxis, size = 150) {
+  const fovRaw = Math.max(parseFloat(majAxis) || 20, 20) / 60 * 2.5
+  const fov = Math.max(0.1, Math.min(10.0, fovRaw))
+  return `https://aladinlite.u-strasbg.fr/img/hips2fits?hips=CDS/P/DSS2/color&ra=${raDeg}&dec=${decDeg}&fov=${fov}&width=${size}&height=${size}&projection=TAN`
+}
+
+export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated, onAddToPlan, utcOffsetMinutes, post, watchedTargetIds, onWatchlistAdd }) {
   const [targets, setTargets] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -354,6 +360,9 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
             return (
               <div key={target.id}>
                 <div className={`target-card-new ${isExpanded ? 'expanded' : ''}`}>
+                  <img className="tc-thumb" loading="lazy"
+                    src={target.preview_url || getDssUrl(target.ra_deg, target.dec_deg, target.maj_axis_arcmin, 96)}
+                    alt="" />
                   <div className="tc-left">
                     <div className="tc-designation">{target.ngc_ic_id}</div>
                     {target.common_name && <div className="tc-common">{target.common_name}</div>}
@@ -402,6 +411,14 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                       <div className="detail-loading">Loading target details...</div>
                     ) : detailData ? (
                       <>
+                        {/* DSS Preview */}
+                        <div className="detail-dss-wrap">
+                          <img className="detail-dss-img" loading="lazy"
+                            src={target.preview_url || getDssUrl(target.ra_deg, target.dec_deg, target.maj_axis_arcmin, 300)}
+                            alt="" />
+                          <span className="detail-dss-credit">DSS2 · CDS Strasbourg</span>
+                        </div>
+
                         {/* Section 1: Overview */}
                         <div className="detail-section">
                           <div className="detail-section-title">Overview</div>
@@ -497,12 +514,29 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                           )}
                         </div>
 
-                        {/* Section 5: Add to Plan */}
-                        <div className="detail-section">
+                        {/* Section 5: Actions */}
+                        <div className="detail-section detail-actions">
                           <button className="add-to-plan-btn"
                             onClick={() => addToPlan(target, detailData)}>
                             Add to Tonight's Plan
                           </button>
+                          {watchedTargetIds?.has(target.id) ? (
+                            <span className="watchlisted-badge">Watchlisted ✓</span>
+                          ) : (
+                            <button className="add-to-watchlist-btn"
+                              onClick={async () => {
+                                if (!post || !onWatchlistAdd) return
+                                try {
+                                  await post('/api/watchlist', { targetId: target.id })
+                                  showToast('Added to watchlist')
+                                  if (onWatchlistAdd) onWatchlistAdd()
+                                } catch {
+                                  showToast('Could not add to watchlist')
+                                }
+                              }}>
+                              Add to Watchlist
+                            </button>
+                          )}
                         </div>
                       </>
                     ) : (

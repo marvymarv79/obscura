@@ -2,5 +2,9 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "crons": [{
+    "path": "/api/cron/watchlist-alert",
+    "schedule": "0 15 * * *"
+  }]
 }
