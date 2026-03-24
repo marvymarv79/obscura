@@ -40,18 +40,18 @@ export default async function handler(req, res) {
 
     await sql`ALTER TABLE targets ADD COLUMN IF NOT EXISTS messier_number INTEGER`
 
-    let updated = 0
     for (const [mNum, ngcId] of Object.entries(MESSIER_MAP)) {
-      const result = await sql`
+      await sql`
         UPDATE targets SET messier_number = ${parseInt(mNum)}
-        WHERE ngc_ic_id = ${ngcId} AND (messier_number IS NULL OR messier_number != ${parseInt(mNum)})
+        WHERE ngc_ic_id = ${ngcId}
       `
-      if (result.length > 0) updated++
     }
+
+    const [{ count }] = await sql`SELECT COUNT(*) as count FROM targets WHERE messier_number IS NOT NULL`
 
     return res.status(200).json({
       success: true,
-      message: `Messier migration complete: column added, ${updated} targets updated`,
+      message: `Messier migration complete: ${count} targets have Messier numbers`,
       totalMappings: Object.keys(MESSIER_MAP).length
     })
   } catch (error) {
