@@ -597,20 +597,23 @@ function App() {
     setJournalTags(prev => prev.filter(t => t.id !== tagId))
   }
 
-  // Check watchlist alerts when location and forecast are loaded
+  const currentDewDelta = astropheric ? getDewRisk(astropheric.RDPS_Temperature[0].Value.ActualValue, astropheric.RDPS_DewPoint[0].Value.ActualValue) : null
+
+  const forecastDays = buildForecastDays(astropheric, kelvinToFahrenheit)
+
+  // Check watchlist alerts — must be AFTER forecastDays is computed
   const forecastScore0 = forecastDays[0]?.score ?? null
   useEffect(() => {
     if (!isSignedIn || !coords || !get) return
-    const fScore = forecastScore0
-    console.log('[WatchlistBadge] Running check, forecastScore:', fScore, 'coords:', !!coords)
+    console.log('[WatchlistBadge] Running check, forecastScore:', forecastScore0, 'coords:', !!coords)
     const checkWatchlist = async () => {
       try {
         const params = new URLSearchParams({
           lat: coords.latitude, lng: coords.longitude,
-          forecastScore: fScore || 0
+          forecastScore: forecastScore0 || 0
         })
         const data = await get(`/api/watchlist/check?${params}`)
-        console.log('[WatchlistBadge] check response:', { count: Array.isArray(data) ? data.length : 'not array', fScore })
+        console.log('[WatchlistBadge] check response:', { count: Array.isArray(data) ? data.length : 'not array', forecastScore0 })
         if (Array.isArray(data) && data.length > 0) {
           setWatchlistBadge(true)
         }
@@ -618,11 +621,6 @@ function App() {
     }
     checkWatchlist()
   }, [isSignedIn, coords, forecastScore0, get]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const currentDewDelta = astropheric ? getDewRisk(astropheric.RDPS_Temperature[0].Value.ActualValue, astropheric.RDPS_DewPoint[0].Value.ActualValue) : null
-  // Note: currentDewDelta kept for backward compat; selectedConditions.dewDelta used in conditions card
-
-  const forecastDays = buildForecastDays(astropheric, kelvinToFahrenheit)
 
   // Get averaged conditions for the selected day's imaging window
   const getSelectedDayConditions = () => {
