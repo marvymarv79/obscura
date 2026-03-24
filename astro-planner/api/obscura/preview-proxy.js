@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     if (!target) return res.status(404).end()
     raDeg = parseFloat(target.ra_deg)
     decDeg = parseFloat(target.dec_deg)
-    const fovRaw = Math.max(parseFloat(target.maj_axis_arcmin) || 20, 20) / 60 * 2.5
+    const fovRaw = Math.max(parseFloat(target.maj_axis_arcmin) || 20, 20) / 60 * 4.0
     fov = Math.max(0.1, Math.min(10.0, fovRaw))
   } else if (ra && dec) {
     raDeg = parseFloat(ra)
@@ -39,40 +39,36 @@ export default async function handler(req, res) {
   const decStr = `${decSign}${String(decD).padStart(2, '0')}+${String(decMin).padStart(2, '0')}+${decSec.toFixed(1)}`
   const fovArcmin = Math.max(1, Math.round(fov * 60))
 
-  const url = `https://archive.stsci.edu/cgi-bin/dss_search?v=poss2ukstu_red&r=${raStr}&d=${decStr}&e=J2000&h=${fovArcmin}&w=${fovArcmin}&f=gif&c=none&fov=NONE&v3=`
+  // Try STScI DSS first
+  const stsciUrl = `https://archive.stsci.edu/cgi-bin/dss_search?v=poss2ukstu_red&r=${raStr}&d=${decStr}&e=J2000&h=${fovArcmin}&w=${fovArcmin}&f=gif&c=none&fov=NONE&v3=`
 
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(12000) })
-    if (!response.ok) throw new Error(`STScI ${response.status}`)
+  // Try Aladin as primary (works from some Vercel regions)
+  const aladinUrl = `https://aladinlite.u-strasbg.fr/img/hips2fits?hips=CDS/P/DSS2/color&ra=${raDeg}&dec=${decDeg}&fov=${fov}&width=300&height=300&projection=TAN`
 
-    const buffer = await response.arrayBuffer()
-    const contentType = response.headers.get('content-type') || 'image/gif'
+  const sources = [stsciUrl, aladinUrl]
 
-    // Only return if we got an actual image
-    if (!contentType.includes('image') && !contentType.includes('octet')) {
-      throw new Error('Not an image response')
-    }
-
-    res.setHeader('Content-Type', contentType)
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-    res.send(Buffer.from(buffer))
-  } catch (err) {
-    // Fallback: try Aladin
+  for (const url of sources) {
     try {
-      const aladinUrl = `https://aladinlite.u-strasbg.fr/img/hips2fits?hips=CDS/P/DSS2/color&ra=${raDeg}&dec=${decDeg}&fov=${fov}&width=300&height=300&projection=TAN`
-      const resp2 = await fetch(aladinUrl, { signal: AbortSignal.timeout(8000) })
-      if (resp2.ok) {
-        const buf2 = await resp2.arrayBuffer()
-        res.setHeader('Content-Type', 'image/jpeg')
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-        return res.send(Buffer.from(buf2))
-      }
-    } catch { /* both failed */ }
+      const response = await fetch(url, { signal: AbortSignal.timeout(10000) })
+      if (!response.ok) continue
 
-    // Return a 1x1 transparent pixel as fallback
-    const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
-    res.setHeader('Content-Type', 'image/gif')
-    res.setHeader('Cache-Control', 'public, max-age=3600')
-    res.send(pixel)
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('image') && !contentType.includes('octet')) continue
+
+      const buffer = await response.arrayBuffer()
+      if (buffer.byteLength < 100) continue // too small to be a real image
+
+      res.setHeader('Content-Type', contentType.includes('jpeg') ? 'image/jpeg' : 'image/gif')
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      return res.send(Buffer.from(buffer))
+    } catch {
+      continue
+    }
   }
+
+  // All sources failed — return 1x1 transparent pixel
+  const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
+  res.setHeader('Content-Type', 'image/gif')
+  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.send(pixel)
 }

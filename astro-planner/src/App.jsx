@@ -579,7 +579,7 @@ function App() {
 
   // Check watchlist alerts when location and forecast are loaded
   useEffect(() => {
-    if (!isSignedIn || !coords || mainTab === 'watchlist') return
+    if (!isSignedIn || !coords) return
     const fScore = astropheric ? buildForecastDays(astropheric, kelvinToFahrenheit)[0]?.score : null
     const checkWatchlist = async () => {
       try {

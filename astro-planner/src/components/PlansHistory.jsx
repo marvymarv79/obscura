@@ -12,10 +12,27 @@ const TYPE_LABELS = {
   'PN': 'Planetary Nebula', 'SNR': 'Supernova Remnant'
 }
 
+const FILTER_COLORS = {
+  'L': '#888', 'R': '#ef4444', 'G': '#22c55e', 'B': '#3b82f6',
+  'Ha': 'var(--accent-crimson)', 'SII': '#f59e0b', 'OIII': '#06b6d4',
+  'OSC': 'var(--accent-ember)'
+}
+
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+    weekday: 'short', month: 'short', day: 'numeric'
   })
+}
+
+function formatTargetSummary(targets) {
+  if (!targets || targets.length === 0) return 'No targets'
+  const names = targets.map(t => t.targetName || t.targetId)
+  if (names.length <= 3) return names.join(', ')
+  return `${names.slice(0, 2).join(', ')} + ${names.length - 2} more`
+}
+
+function getPreviewUrl(targetId) {
+  return `/api/obscura/preview-proxy?targetId=${targetId}`
 }
 
 function formatTime(isoStr) {
@@ -50,6 +67,7 @@ export default function PlansHistory({
   const [expandedPlan, setExpandedPlan] = useState(null)
   const [creating, setCreating] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [detailPlan, setDetailPlan] = useState(null)
 
   // New plan state
   const [planDate, setPlanDate] = useState(() => new Date().toISOString().split('T')[0])
@@ -359,80 +377,85 @@ export default function PlansHistory({
       ) : (
         <div className="plans-list">
           {plans.map(plan => (
-            <div key={plan.id} className={`plan-card ${expandedPlan === plan.id ? 'expanded' : ''}`}>
-              <div className="plan-card-header"
-                onClick={() => setExpandedPlan(expandedPlan === plan.id ? null : plan.id)}>
+            <div key={plan.id} className="plan-card" onClick={() => setDetailPlan(plan)}>
+              <div className="plan-card-header">
                 <div className="plan-card-main">
-                  <span className="plan-name">{plan.name}</span>
                   <span className="plan-card-date">{formatDate(plan.planDate)}</span>
+                  {plan.locationName && <span className="plan-card-loc"> · {plan.locationName}</span>}
                 </div>
-                <div className="plan-card-meta">
-                  {plan.locationName && <span className="plan-location">{plan.locationName}</span>}
-                  {plan.targets && <span className="plan-target-count">{plan.targets.length} targets</span>}
+                <div className="plan-card-targets-summary">
+                  {formatTargetSummary(plan.targets)}
                 </div>
-                <span className="plan-card-chevron">{expandedPlan === plan.id ? '▼' : '▶'}</span>
               </div>
-
-              {expandedPlan === plan.id && (
-                <div className="plan-card-details">
-                  {plan.notes && <div className="plan-notes"><strong>Notes:</strong> {plan.notes}</div>}
-
-                  {plan.targets && plan.targets.length > 0 ? (
-                    <div className="plan-targets-list">
-                      {plan.targets.map((t, i) => (
-                        <div key={i} className="plan-target-row">
-                          <div className="ptr-header">
-                            <span className="ptr-id">{t.targetId}</span>
-                            <span className="ptr-name">{t.targetName}</span>
-                            {t.visibilityScore && (
-                              <span className="ptr-score" style={{ color: getScoreColor(t.visibilityScore) }}>
-                                {t.visibilityScore}
-                              </span>
-                            )}
-                          </div>
-                          <div className="ptr-meta">
-                            {t.notes && <span className="ptr-train">{t.notes}</span>}
-                            {t.transitTime && (
-                              <span className="ptr-transit">Transit {formatTime(t.transitTime)}</span>
-                            )}
-                            {t.moonSeparation && (
-                              <span className="ptr-moon">Moon {Math.round(t.moonSeparation)}°</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="plan-targets-empty">No targets in this plan.</div>
-                  )}
-
-                  <div className="plan-card-actions">
-                    <button className="plan-action-button clone"
-                      onClick={(e) => { e.stopPropagation(); onClonePlan(plan) }}>
-                      Clone
-                    </button>
-                    {confirmDeleteId === plan.id ? (
-                      <>
-                        <button className="plan-action-button delete"
-                          onClick={(e) => { e.stopPropagation(); onDeletePlan(plan.id); setConfirmDeleteId(null) }}>
-                          Delete?
-                        </button>
-                        <button className="plan-action-button cancel"
-                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null) }}>
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <button className="plan-action-button delete"
-                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(plan.id) }}>
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
+              <span className="plan-card-chevron">▶</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Plan Detail Modal */}
+      {detailPlan && (
+        <div className="plan-modal-overlay" onClick={(e) => { e.stopPropagation(); setDetailPlan(null) }}>
+          <div className="plan-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="plan-modal-header">
+              <div>
+                <div className="pm-date">{formatDate(detailPlan.planDate)}</div>
+                {detailPlan.locationName && <div className="pm-location">{detailPlan.locationName}</div>}
+              </div>
+              <button className="pm-close" onClick={(e) => { e.stopPropagation(); setDetailPlan(null) }}>×</button>
+            </div>
+
+            <div className="plan-modal-body">
+              {detailPlan.notes && <div className="pm-notes">{detailPlan.notes}</div>}
+
+              {detailPlan.targets && detailPlan.targets.length > 0 ? (
+                detailPlan.targets.map((t, i) => (
+                  <div key={i} className="pm-target-section">
+                    <div className="pm-target-header">
+                      <span className="pm-target-name">{t.targetId}</span>
+                      <span className="pm-target-common">{t.targetName}</span>
+                      {t.visibilityScore && (
+                        <span className="pm-target-score" style={{ color: getScoreColor(t.visibilityScore) }}>
+                          {t.visibilityScore}
+                        </span>
+                      )}
+                    </div>
+                    <div className="pm-target-meta">
+                      {t.notes && <span className="pm-train">{t.notes}</span>}
+                      {t.transitTime && <span className="pm-transit">Transit {formatTime(t.transitTime)}</span>}
+                      {t.moonSeparation && <span className="pm-moon">Moon {Math.round(t.moonSeparation)}°</span>}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="pm-empty">No targets in this plan.</div>
+              )}
+            </div>
+
+            <div className="plan-modal-footer">
+              <button className="plan-action-button clone"
+                onClick={(e) => { e.stopPropagation(); onClonePlan(detailPlan); setDetailPlan(null) }}>
+                Clone
+              </button>
+              {confirmDeleteId === detailPlan.id ? (
+                <>
+                  <button className="plan-action-button delete"
+                    onClick={(e) => { e.stopPropagation(); onDeletePlan(detailPlan.id); setConfirmDeleteId(null); setDetailPlan(null) }}>
+                    Delete?
+                  </button>
+                  <button className="plan-action-button cancel"
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null) }}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button className="plan-action-button delete"
+                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(detailPlan.id) }}>
+                  Delete
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

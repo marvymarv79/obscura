@@ -2329,6 +2329,127 @@ tbody tr:hover {
 }
 
 .plan-action-button.delete:hover { background: rgba(204, 41, 54, 0.15); }
+.plan-action-button.cancel {
+  color: var(--text-muted);
+  border-color: var(--border-default);
+}
+
+.plan-card-targets-summary {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+.plan-card-loc {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Plan Detail Modal */
+.plan-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.plan-modal {
+  background: var(--bg-card);
+  border-radius: 12px;
+  border-top: 2px solid var(--accent-ember);
+  max-width: 640px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.plan-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+.pm-date {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+.pm-location {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+.pm-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.pm-close:hover { color: var(--text-primary); }
+.plan-modal-body {
+  padding: 16px 24px;
+  flex: 1;
+  overflow-y: auto;
+}
+.pm-notes {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: var(--bg-base);
+  border-radius: 6px;
+}
+.pm-target-section {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-default);
+}
+.pm-target-section:last-child { border-bottom: none; }
+.pm-target-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.pm-target-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 14px;
+}
+.pm-target-common {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.pm-target-score {
+  font-weight: 600;
+  font-size: 14px;
+  margin-left: auto;
+}
+.pm-target-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pm-train, .pm-transit, .pm-moon {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.pm-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px;
+}
+.plan-modal-footer {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-default);
+}
 
 /* ── Plan Creator ── */
 .plans-header {

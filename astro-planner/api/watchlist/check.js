@@ -40,9 +40,10 @@ async function handler(req, res, userId) {
         )
         if (!result) continue
 
+        const forecastOk = fScore >= 70 || fScore === 0 // 0 = no forecast loaded, skip check
         if (result.score >= 70 && result.imagingWindow &&
             result.imagingWindow.duration_minutes >= 360 &&
-            fScore >= 70) {
+            forecastOk) {
           qualifying.push({
             watchlistId: entry.id,
             targetId: entry.target_id,
