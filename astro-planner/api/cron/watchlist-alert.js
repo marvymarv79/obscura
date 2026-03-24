@@ -33,6 +33,7 @@ export default async function handler(req, res) {
         WHERE user_id = ${userId} AND alert_date = ${today}
       `
       if (existingAlert.length > 0) {
+        console.log('[cron/watchlist-alert] Duplicate skip — already alerted today', { userId })
         skipped++
         continue
       }
@@ -88,6 +89,7 @@ export default async function handler(req, res) {
         for (const target of entries) {
           try {
             const result = scoreTarget(target, location, tonight, null, [])
+            console.log('[cron/watchlist-alert] Target evaluated', { targetId: target.ngc_ic_id, score: result?.score ?? null, windowMin: result?.imagingWindow?.duration_minutes ?? null })
             if (!result || result.score < 70) continue
             if (!result.imagingWindow || result.imagingWindow.duration_minutes < 360) continue
 
@@ -170,12 +172,14 @@ export default async function handler(req, res) {
       const subject = `Obscura — ${qualifyingTargets.length} target${qualifyingTargets.length !== 1 ? 's' : ''} shootable tonight at ${bestLocation.name}`
 
       try {
+        console.log('[cron/watchlist-alert] Sending email', { userId, targetCount: qualifyingTargets.length, location: bestLocation.name })
         await resend.emails.send({
           from: 'alerts@marvymarv.xyz',
           to: 'm.clark.church@gmail.com',
           subject,
           html: emailHtml
         })
+        console.log('[cron/watchlist-alert] Email sent successfully', { userId })
 
         await sql`
           INSERT INTO watchlist_alerts (user_id, target_count, location_name, alert_date)
@@ -183,14 +187,14 @@ export default async function handler(req, res) {
         `
         alerted++
       } catch (emailErr) {
-        console.error('Email send error:', emailErr)
+        console.error('[cron/watchlist-alert] Email send error:', emailErr)
         skipped++
       }
     }
 
     return res.status(200).json({ processed, alerted, skipped })
   } catch (error) {
-    console.error('Watchlist alert cron error:', error)
+    console.error('[cron/watchlist-alert] Error:', error)
     return res.status(500).json({ error: error.message })
   }
 }

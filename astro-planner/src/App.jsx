@@ -601,6 +601,7 @@ function App() {
   useEffect(() => {
     if (!isSignedIn || !coords) return
     const fScore = astropheric ? buildForecastDays(astropheric, kelvinToFahrenheit)[0]?.score : null
+    if (fScore === null || fScore === undefined) { console.warn('[WatchlistBadge] forecastScore is null — badge check may skip') }
     const checkWatchlist = async () => {
       try {
         const params = new URLSearchParams({

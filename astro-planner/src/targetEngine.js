@@ -296,6 +296,7 @@ export function scoreTarget(target, location, date, moonData, imagingTrains) {
  * Returns ordered array of filter blocks for the night.
  */
 export function getFilterSequence(target, imagingWindow, transitTime, cameraType, utcOffsetMinutes = 0) {
+  console.log('[FilterSeq] Computing', { targetName: target?.ngc_ic_id, cameraType, utcOffsetMinutes })
   if (!imagingWindow) return []
 
   const { start, end } = imagingWindow
@@ -377,7 +378,7 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
   }
 
   // Convert to output format
-  return filterBlocks.map(b => {
+  const blocks = filterBlocks.map(b => {
     const durSec = (b.e - b.s) / 1000
     return {
       filter: b.filter,
@@ -387,6 +388,8 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
       estimatedSubs: Math.floor(durSec / b.subLen)
     }
   }).filter(b => b.estimatedSubs > 0)
+  console.log('[FilterSeq] Result', { targetName: target?.ngc_ic_id, blocks: blocks.length })
+  return blocks
 }
 
 function formatTime(date, utcOffsetMinutes = 0) {

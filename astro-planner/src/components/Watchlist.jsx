@@ -388,7 +388,8 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
                   <img
                     className="wl-thumb"
                     src={getPreviewUrl(entry.target_id, entry.ra_deg, entry.dec_deg)}
-                    alt="" loading="lazy" />
+                    alt="" loading="lazy"
+                    onError={(e) => { console.warn('[DSS] Image failed to load', { src: e.target.src }) }} />
                   <div className="wl-item-info">
                     <div className="wl-item-name">{entry.messier_number ? `M${entry.messier_number} · ${entry.ngc_ic_id}` : entry.ngc_ic_id}</div>
                     {entry.common_name && <div className="wl-item-common">{entry.common_name}</div>}
@@ -424,7 +425,8 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
               <div className="wr-header">
                 <img className="wr-dss-img"
                   src={getPreviewUrl(selected.target_id, selected.ra_deg, selected.dec_deg)}
-                  alt="" loading="lazy" />
+                  alt="" loading="lazy"
+                  onError={(e) => { console.warn('[DSS] Image failed to load', { src: e.target.src }) }} />
                 <div className="wr-header-info">
                   <div className="wr-target-name">{selected.messier_number ? `M${selected.messier_number} · ${selected.ngc_ic_id}` : selected.ngc_ic_id}</div>
                   {selected.common_name && <div className="wr-common-name">{selected.common_name}</div>}
@@ -566,7 +568,8 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
                       onClick={(e) => { e.stopPropagation(); if (!watched) addToWatchlist(t.id) }}>
                       <img className="wl-browser-thumb" loading="lazy"
                         src={getPreviewUrl(t.id, t.ra_deg, t.dec_deg)}
-                        alt="" />
+                        alt=""
+                        onError={(e) => { console.warn('[DSS] Image failed to load', { src: e.target.src }) }} />
                       <div className="wl-browser-info">
                         <span className="wl-browser-name">{displayName}</span>
                         {t.common_name && <span className="wl-browser-common">{t.common_name}</span>}

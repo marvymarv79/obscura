@@ -50,6 +50,14 @@ async function handler(req, res, userId) {
     const targetSnapshots = []
 
     for (const pt of planTargets) {
+      if (pt.ngc_ic_id) {
+        console.log('[api/save-snapshot] Target lookup matched via JOIN', { planTargetId: pt.id, ngcIcId: pt.ngc_ic_id })
+      } else if (pt.target_id) {
+        console.warn('[api/save-snapshot] Target lookup fallback to numeric target_id', { planTargetId: pt.id, targetId: pt.target_id })
+      } else {
+        console.warn('[api/save-snapshot] Target lookup complete miss — no ngc_ic_id or target_id', { planTargetId: pt.id })
+      }
+
       const target = {
         ngc_ic_id: pt.ngc_ic_id,
         common_name: pt.common_name,
@@ -114,7 +122,7 @@ async function handler(req, res, userId) {
 
     return res.status(200).json({ plan_id: id, snapshot: planSnapshot, targets: targetSnapshots })
   } catch (error) {
-    console.error('Mensura save-snapshot error:', error)
+    console.error('[api/save-snapshot] Error:', error)
     return res.status(500).json({ error: 'Database error', details: error.message })
   }
 }

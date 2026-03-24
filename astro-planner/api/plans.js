@@ -113,7 +113,7 @@ async function handler(req, res, userId) {
         return res.status(405).json({ error: 'Method not allowed' })
     }
   } catch (error) {
-    console.error('Plans API error:', error)
+    console.error('[api/plans] Error:', error)
     return res.status(500).json({
       error: 'Database error',
       details: error.message

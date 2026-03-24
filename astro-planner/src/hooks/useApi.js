@@ -23,14 +23,18 @@ export function useApi() {
       }
     })
 
+    if (response.status === 401 || response.status === 403) {
+      console.warn('[useApi] Auth failure', { status: response.status, url, method: options.method || 'GET' })
+    }
+
     if (!response.ok) {
       const text = await response.text()
       let message = `Request failed (${response.status})`
       try {
         const parsed = JSON.parse(text)
         message = parsed.details || parsed.error || message
-      } catch {
-        // Response was not JSON (e.g. HTML error page)
+      } catch (e) {
+        console.error('[useApi] Failed to parse response as JSON', { url, status: response.status, error: e.message })
       }
       throw new Error(message)
     }
@@ -39,7 +43,8 @@ export function useApi() {
     if (!text) return null
     try {
       return JSON.parse(text)
-    } catch {
+    } catch (e) {
+      console.error('[useApi] Failed to parse response as JSON', { url, status: response.status, error: e.message })
       throw new Error('Invalid JSON response from server')
     }
   }, [getToken, isSignedIn])

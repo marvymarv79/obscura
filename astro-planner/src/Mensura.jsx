@@ -409,7 +409,8 @@ export default function Mensura() {
                         {isDraft && <span className="mw-drag">⠿</span>}
                         <img className="mw-target-thumb" loading="lazy"
                           src={`/api/obscura/preview-proxy?targetId=${pt.target_id}`}
-                          alt={tName} />
+                          alt={tName}
+                          onError={(e) => { console.warn('[DSS] Image failed to load', { src: e.target.src }) }} />
                         <div className="mw-target-info">
                           <div className="mw-target-name">
                             {tName}
@@ -610,7 +611,8 @@ export default function Mensura() {
                             style={added ? { opacity: 0.4 } : {}}
                             onClick={(e) => { e.stopPropagation(); if (!added) handleAddTarget(t) }}>
                             <img className="mw-catalog-thumb" loading="lazy"
-                              src={`/api/obscura/preview-proxy?targetId=${t.id}`} alt="" />
+                              src={`/api/obscura/preview-proxy?targetId=${t.id}`} alt=""
+                              onError={(e) => { console.warn('[DSS] Image failed to load', { src: e.target.src }) }} />
                             <div>
                               <div className="mw-catalog-name">{targetName(t)}</div>
                               {t.common_name && <div className="mw-catalog-common">{t.common_name}</div>}

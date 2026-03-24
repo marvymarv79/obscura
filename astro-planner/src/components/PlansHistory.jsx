@@ -488,7 +488,8 @@ export default function PlansHistory({
                   {t.targetId && (
                     <div className="psi-dss-wrap">
                       <img src={`/api/obscura/preview-proxy?targetId=${t.targetId}`}
-                        alt={t.ngcIcId} className="psi-dss-img" loading="lazy" />
+                        alt={t.ngcIcId} className="psi-dss-img" loading="lazy"
+                        onError={(e) => { console.warn('[DSS] Image failed to load', { src: e.target.src }) }} />
                       <span className="psi-dss-label">DSS2 · CDS Strasbourg</span>
                     </div>
                   )}

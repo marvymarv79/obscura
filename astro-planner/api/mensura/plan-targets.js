@@ -78,7 +78,7 @@ async function handler(req, res, userId) {
 
     return res.status(201).json({ ...planTarget, snapshot })
   } catch (error) {
-    console.error('Mensura plan-targets error:', error)
+    console.error('[api/plan-targets] Error:', error)
     return res.status(500).json({ error: 'Database error', details: error.message })
   }
 }
