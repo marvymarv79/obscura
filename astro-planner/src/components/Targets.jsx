@@ -524,14 +524,24 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                             <span className="watchlisted-badge">Watchlisted ✓</span>
                           ) : (
                             <button className="add-to-watchlist-btn"
-                              onClick={async () => {
-                                if (!post || !onWatchlistAdd) return
+                              onClick={async (e) => {
+                                e.stopPropagation()
                                 try {
-                                  await post('/api/watchlist', { targetId: target.id })
+                                  if (post) {
+                                    await post('/api/watchlist', { targetId: target.id })
+                                  } else {
+                                    // Fallback: direct fetch with no auth (will 401 if auth required)
+                                    const resp = await fetch('/api/watchlist', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ targetId: target.id })
+                                    })
+                                    if (!resp.ok) throw new Error(`${resp.status}`)
+                                  }
                                   showToast('Added to watchlist')
                                   if (onWatchlistAdd) onWatchlistAdd()
-                                } catch {
-                                  showToast('Could not add to watchlist')
+                                } catch (err) {
+                                  showToast(err?.message?.includes('409') ? 'Already in watchlist' : 'Could not add to watchlist')
                                 }
                               }}>
                               Add to Watchlist
