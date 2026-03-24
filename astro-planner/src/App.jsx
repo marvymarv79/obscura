@@ -75,6 +75,7 @@ function App() {
   const [activeSetups, setActiveSetups] = useState([])
   const [watchlistBadge, setWatchlistBadge] = useState(false)
   const [watchedTargetIds, setWatchedTargetIds] = useState(new Set())
+  const [journalPrefill, setJournalPrefill] = useState(null)
   const [logEntries, setLogEntries] = useState([])
   const [customGear, setCustomGear] = useState({ cameras: [], optics: [], setups: [] })
   const [selectedDay, setSelectedDay] = useState(0)
@@ -692,6 +693,9 @@ function App() {
               onRefresh={loadPlans}
               savedLocations={savedLocations}
               coords={coords}
+              onSwitchTab={(tab) => setMainTab(tab)}
+              onPrefillJournal={(data) => setJournalPrefill(data)}
+              forecastScore={forecastDays[0]?.score || null}
             />
           )}
 
@@ -707,6 +711,9 @@ function App() {
               onCreateTag={handleCreateTag}
               onDeleteTag={handleDeleteTag}
               onRefresh={loadJournal}
+              prefillData={journalPrefill}
+              onPrefillConsumed={() => setJournalPrefill(null)}
+              onSwitchTab={(tab) => setMainTab(tab)}
             />
           )}
 

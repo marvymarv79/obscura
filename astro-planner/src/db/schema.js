@@ -1,4 +1,4 @@
-import { pgTable, varchar, text, timestamp, decimal, integer, boolean, uuid, date, primaryKey } from 'drizzle-orm/pg-core'
+import { pgTable, varchar, text, timestamp, decimal, integer, boolean, uuid, date, primaryKey, jsonb } from 'drizzle-orm/pg-core'
 
 // Users table - syncs with Clerk
 export const users = pgTable('users', {
@@ -74,6 +74,9 @@ export const imagingPlans = pgTable('imaging_plans', {
   temperature: decimal('temperature', { precision: 5, scale: 1 }),
   notes: text('notes'),
   isArchived: boolean('is_archived').default(false),
+  planSnapshot: jsonb('plan_snapshot'),
+  completedAt: timestamp('completed_at'),
+  journalEntryId: uuid('journal_entry_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 })
@@ -115,6 +118,7 @@ export const journalEntries = pgTable('journal_entries', {
   imagingPlanId: uuid('imaging_plan_id').references(() => imagingPlans.id, { onDelete: 'set null' }),
   imagingTrainId: integer('imaging_train_id'), // Apertura profile ID (no FK - separate schema)
   processingSoftware: text('processing_software'), // Comma-separated: "Siril,PixInsight"
+  planId: uuid('plan_id'), // Links to imaging_plans for bidirectional linking
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 })
