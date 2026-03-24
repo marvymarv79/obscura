@@ -1,3 +1,8 @@
+/**
+ * GET /api/mensura/plans/detail?id=UUID
+ * Returns single plan with all targets joined.
+ * Uses query param instead of dynamic route to avoid Vercel SPA rewrite conflicts.
+ */
 import { neon } from '@neondatabase/serverless'
 import { withAuth } from '../../_utils/auth.js'
 
@@ -32,9 +37,9 @@ async function handler(req, res, userId) {
       ORDER BY pt.position
     `
 
-    return res.status(200).json({ ...plan, targets })
+    return res.status(200).json({ plan, targets })
   } catch (error) {
-    console.error('Mensura plan detail error:', error)
+    console.error('[api/mensura/plans/detail] Error:', error)
     return res.status(500).json({ error: 'Database error', details: error.message })
   }
 }

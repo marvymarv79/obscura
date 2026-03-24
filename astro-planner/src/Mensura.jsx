@@ -96,7 +96,7 @@ export default function Mensura() {
   // Load plan detail
   const loadPlanDetail = useCallback(async (planId) => {
     try {
-      const data = await get(`/api/mensura/plans/${planId}`)
+      const data = await get(`/api/mensura/plans/detail?id=${planId}`)
       setPlanDetail(data.plan || data)
       setPlanTargets(data.targets || [])
       setPlanName(data.plan?.name || data.name || `Session ${data.plan?.plan_date || data.plan_date || ''}`)
