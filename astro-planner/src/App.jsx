@@ -605,11 +605,11 @@ function App() {
           </div>
           <div className="nav-center">
             <button className={`nav-pill ${mainTab === 'tonight' ? 'active' : ''}`} onClick={() => { setMainTab('tonight'); setActiveTab('weather') }}>Tonight</button>
-            <button className={`nav-pill ${mainTab === 'plans' ? 'active' : ''}`} onClick={() => { setMainTab('plans'); loadPlans() }}>Plans</button>
-            <button className={`nav-pill ${mainTab === 'journal' ? 'active' : ''}`} onClick={() => { setMainTab('journal'); loadJournal() }}>Journal</button>
             <button className={`nav-pill ${mainTab === 'targets' ? 'active' : ''}`} onClick={() => setMainTab('targets')}>
               Targets {targets.length > 0 && <span className="pill-badge">{targets.length}</span>}
             </button>
+            <button className={`nav-pill ${mainTab === 'plans' ? 'active' : ''}`} onClick={() => { setMainTab('plans'); loadPlans() }}>Plans</button>
+            <button className={`nav-pill ${mainTab === 'journal' ? 'active' : ''}`} onClick={() => { setMainTab('journal'); loadJournal() }}>Journal</button>
           </div>
           <div className="nav-right">
             <div className="nav-avatar">{user?.firstName?.[0] || ''}{user?.lastName?.[0] || ''}</div>
