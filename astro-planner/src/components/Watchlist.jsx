@@ -244,7 +244,14 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
   }
 
   const handleAddToPlan = async (entry) => {
-    if (!coords || !onAddToPlan) return
+    if (!coords) {
+      showToast('Load a location first')
+      return
+    }
+    if (!onAddToPlan) {
+      showToast('Could not add to plan — not signed in')
+      return
+    }
     const tonight = new Date().toISOString().split('T')[0]
     try {
       const planData = {
@@ -264,8 +271,8 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
       await onAddToPlan(planData)
       showToast('Added to tonight\'s plan')
       if (onPlanCreated) onPlanCreated()
-    } catch {
-      showToast('Could not add to plan')
+    } catch (err) {
+      showToast('Could not add to plan — ' + (err?.message || 'try again'))
     }
   }
 
@@ -359,7 +366,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
         <div className="watchlist-left">
           <div className="wl-header">
             <span className="wl-title">Watchlist</span>
-            <button className="wl-add-btn" onClick={openBrowser}>+ Add</button>
+            <button className="wl-add-btn" onClick={(e) => { e.stopPropagation(); openBrowser() }}>+ Add</button>
           </div>
 
           {loading ? (
@@ -370,7 +377,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
             <div className="wl-empty">
               <p>Your watchlist is empty.</p>
               <p>Add targets from the Targets tab to get notified when conditions are right.</p>
-              <button className="wl-add-first" onClick={openBrowser}>+ Add your first target</button>
+              <button className="wl-add-first" onClick={(e) => { e.stopPropagation(); openBrowser() }}>+ Add your first target</button>
             </div>
           ) : (
             <div className="wl-list">
@@ -428,7 +435,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
                     </span>
                     <span className="wr-imaging-badge">{selected.best_imaging_type}</span>
                     <button className={`wl-alert-toggle ${selected.alerts_enabled ? 'on' : 'off'}`}
-                      onClick={() => toggleAlert(selected)}>
+                      onClick={(e) => { e.stopPropagation(); toggleAlert(selected) }}>
                       {selected.alerts_enabled ? '🔔 Alerts on' : '🔕 Alerts off'}
                     </button>
                   </div>
@@ -471,9 +478,9 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
                 <div className="wr-section-title">Multi-Night Plan</div>
                 <div className="wr-stepper">
                   <span>Planned nights:</span>
-                  <button onClick={() => updatePlannedNights(selected, Math.max(1, (selected.planned_nights || 1) - 1))}>−</button>
+                  <button onClick={(e) => { e.stopPropagation(); updatePlannedNights(selected, Math.max(1, (selected.planned_nights || 1) - 1)) }}>−</button>
                   <span className="wr-stepper-val">{selected.planned_nights || 1}</span>
-                  <button onClick={() => updatePlannedNights(selected, Math.min(7, (selected.planned_nights || 1) + 1))}>+</button>
+                  <button onClick={(e) => { e.stopPropagation(); updatePlannedNights(selected, Math.min(7, (selected.planned_nights || 1) + 1)) }}>+</button>
                 </div>
                 <div className="wr-plan-list">
                   {multiNightPlan && multiNightPlan.map((night, i) => (
@@ -511,10 +518,10 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
 
               {/* Actions */}
               <div className="wr-actions">
-                <button className="wr-add-plan-btn" onClick={() => handleAddToPlan(selected)}>
+                <button className="wr-add-plan-btn" onClick={(e) => { e.stopPropagation(); handleAddToPlan(selected) }}>
                   Add to plan →
                 </button>
-                <button className="wr-remove-btn" onClick={() => removeFromWatchlist(selected.id)}>
+                <button className="wr-remove-btn" onClick={(e) => { e.stopPropagation(); removeFromWatchlist(selected.id) }}>
                   Remove from watchlist
                 </button>
               </div>
