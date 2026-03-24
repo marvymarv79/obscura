@@ -321,12 +321,11 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
   // Sorted by distance from transit: closest to transit = first filter
   let filterPlan
   if (isNarrowband) {
-    // Narrowband: L near transit, OIII next, Ha at edges, SII last
+    // Narrowband: Ha, OIII, SII only — no L
     filterPlan = [
-      { filter: 'L', pct: 0.25, subLen: 300 },
-      { filter: 'OIII', pct: 0.25, subLen: 300 },
-      { filter: 'Ha', pct: 0.30, subLen: 300 },
-      { filter: 'SII', pct: 0.20, subLen: 300 }
+      { filter: 'OIII', pct: 0.30, subLen: 300 },
+      { filter: 'Ha', pct: 0.40, subLen: 300 },
+      { filter: 'SII', pct: 0.30, subLen: 300 }
     ]
   } else {
     // Broadband/LRGB: L near transit, B when high, G mid, R lowest

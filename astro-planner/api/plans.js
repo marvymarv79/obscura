@@ -45,6 +45,13 @@ async function handler(req, res, userId) {
           return res.status(400).json({ error: 'Name and plan date are required' })
         }
 
+        // Safe date conversion for timestamp fields
+        const safeTimestamp = (val) => {
+          if (!val) return null
+          const d = new Date(val)
+          return isNaN(d.getTime()) ? null : d
+        }
+
         // Create the plan
         const [newPlan] = await db.insert(imagingPlans).values({
           userId,
@@ -73,7 +80,7 @@ async function handler(req, res, userId) {
             gearScore: t.gearScore || null,
             setupId: t.setupId || null,
             defaultSetupId: t.defaultSetupId || null,
-            transitTime: t.transitTime || null,
+            transitTime: safeTimestamp(t.transitTime),
             hoursAbove30: t.hoursAbove30 || null,
             moonSeparation: t.moonSeparation || null,
             notes: t.notes || null

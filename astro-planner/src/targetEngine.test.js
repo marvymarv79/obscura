@@ -134,21 +134,20 @@ console.log('\n=== Test 4: getFilterSequence — narrowband + mono ===')
 
   if (blocks.length >= 3) {
     const filters = blocks.map(b => b.filter)
-    assert('contains L filter', filters.includes('L'))
 
-    // Find L block — should be near transit
-    const lBlock = blocks.find(b => b.filter === 'L')
-    assert('L block has estimatedSubs', lBlock && lBlock.estimatedSubs > 0)
+    // Narrowband should NOT have L
+    assert('no L filter in narrowband', !filters.includes('L'))
+
+    // Should have Ha, SII, OIII
+    assert('has Ha', filters.includes('Ha'))
+    assert('has SII', filters.includes('SII'))
+    assert('has OIII', filters.includes('OIII'))
 
     // Check all blocks have required fields
     const allValid = blocks.every(b =>
       b.filter && b.start && b.end && b.subLength > 0 && b.estimatedSubs >= 0
     )
     assert('all blocks have required fields', allValid)
-
-    // Narrowband targets should have Ha or SII or OIII
-    const hasNB = filters.some(f => ['Ha', 'SII', 'OIII'].includes(f))
-    assert('narrowband target has NB filters', hasNB)
   }
 }
 
