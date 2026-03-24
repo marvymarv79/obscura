@@ -28,6 +28,7 @@ export default async function handler(req, res) {
     let failed = 0
     const total = targets.length
     const batchSize = 10
+    const errors = []
 
     for (let i = 0; i < targets.length; i += batchSize) {
       if (Date.now() - startTime > TIMEOUT_MS) {
@@ -67,7 +68,9 @@ export default async function handler(req, res) {
         if (r.status === 'fulfilled') processed++
         else {
           failed++
-          console.error('Preview failed:', r.reason?.message)
+          const msg = r.reason?.message || String(r.reason)
+          console.error('Preview failed:', msg)
+          if (errors.length < 3) errors.push(msg)
         }
       }
 
@@ -80,6 +83,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       processed, failed, total,
+      sampleErrors: errors.length > 0 ? errors : undefined,
+      hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
       message: `Processed ${processed}/${total}, ${failed} failed.`
     })
   } catch (error) {
