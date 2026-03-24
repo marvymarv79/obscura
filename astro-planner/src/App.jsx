@@ -33,6 +33,22 @@ import Watchlist from './components/Watchlist'
 
 const GEAR_MATCH_THRESHOLD = 60
 
+/*
+ * IMPORTANT: Buttons inside clickable parent cards
+ * MUST call e.stopPropagation() on their onClick handler.
+ * Without it, the parent card's click handler fires
+ * instead of the button's, causing silent failures.
+ *
+ * Correct pattern:
+ * <button onClick={(e) => {
+ *   e.stopPropagation();
+ *   handleAction();
+ * }}>
+ *
+ * This has been a recurring bug — always add
+ * stopPropagation() to any button inside a
+ * clickable container.
+ */
 function App() {
   const { user, isLoaded: userLoaded } = useUser()
   const { get, post, put, del, isSignedIn } = useApi()

@@ -80,6 +80,22 @@ function VisibilityCalendar({ raDeg, decDeg, lat, lng, minAlt }) {
   )
 }
 
+/*
+ * IMPORTANT: Buttons inside clickable parent cards
+ * MUST call e.stopPropagation() on their onClick handler.
+ * Without it, the parent card's click handler fires
+ * instead of the button's, causing silent failures.
+ *
+ * Correct pattern:
+ * <button onClick={(e) => {
+ *   e.stopPropagation();
+ *   handleAction();
+ * }}>
+ *
+ * This has been a recurring bug — always add
+ * stopPropagation() to any button inside a
+ * clickable container.
+ */
 export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecastScore, onAddToPlan, onPlanCreated }) {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
