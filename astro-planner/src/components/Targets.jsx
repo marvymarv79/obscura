@@ -151,10 +151,10 @@ function AltitudeChart({ altitudeCurve, imagingWindow, filterSequence, minAlt })
   )
 }
 
-function getDssUrl(raDeg, decDeg, majAxis, size = 150) {
-  const fovRaw = Math.max(parseFloat(majAxis) || 20, 20) / 60 * 2.5
-  const fov = Math.max(0.1, Math.min(10.0, fovRaw))
-  return `https://aladinlite.u-strasbg.fr/img/hips2fits?hips=CDS/P/DSS2/color&ra=${raDeg}&dec=${decDeg}&fov=${fov}&width=${size}&height=${size}&projection=TAN`
+function getPreviewUrl(targetId, raDeg, decDeg) {
+  if (targetId) return `/api/obscura/preview-proxy?targetId=${targetId}`
+  if (raDeg && decDeg) return `/api/obscura/preview-proxy?ra=${raDeg}&dec=${decDeg}`
+  return null
 }
 
 export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated, onAddToPlan, utcOffsetMinutes, post, watchedTargetIds, onWatchlistAdd }) {
@@ -361,7 +361,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
               <div key={target.id}>
                 <div className={`target-card-new ${isExpanded ? 'expanded' : ''}`}>
                   <img className="tc-thumb" loading="lazy"
-                    src={target.preview_url || getDssUrl(target.ra_deg, target.dec_deg, target.maj_axis_arcmin, 96)}
+                    src={getPreviewUrl(target.id, target.ra_deg, target.dec_deg)}
                     alt="" />
                   <div className="tc-left">
                     <div className="tc-designation">{target.messier_number ? `M${target.messier_number} · ${target.ngc_ic_id}` : target.ngc_ic_id}</div>
@@ -414,7 +414,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                         {/* DSS Preview */}
                         <div className="detail-dss-wrap">
                           <img className="detail-dss-img" loading="lazy"
-                            src={target.preview_url || getDssUrl(target.ra_deg, target.dec_deg, target.maj_axis_arcmin, 300)}
+                            src={getPreviewUrl(target.id, target.ra_deg, target.dec_deg)}
                             alt="" />
                           <span className="detail-dss-credit">DSS2 · CDS Strasbourg</span>
                         </div>

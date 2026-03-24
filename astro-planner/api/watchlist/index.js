@@ -10,7 +10,7 @@ async function handler(req, res, userId) {
         SELECT w.id, w.target_id, w.alerts_enabled, w.planned_nights, w.created_at,
           t.ngc_ic_id, t.common_name, t.object_type, t.ra_deg, t.dec_deg,
           t.maj_axis_arcmin, t.min_axis_arcmin, t.magnitude,
-          t.surface_brightness, t.best_imaging_type, t.preview_url
+          t.surface_brightness, t.best_imaging_type, t.preview_url, t.messier_number
         FROM watchlist w
         JOIN targets t ON w.target_id = t.id
         WHERE w.user_id = ${userId}

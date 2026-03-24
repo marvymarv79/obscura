@@ -18,10 +18,10 @@ const FILTER_COLORS = {
   'OSC': 'var(--accent-ember)'
 }
 
-function getDssUrl(raDeg, decDeg, majAxis, size = 150) {
-  const fovRaw = Math.max(parseFloat(majAxis) || 20, 20) / 60 * 2.5
-  const fov = Math.max(0.1, Math.min(10.0, fovRaw))
-  return `https://aladinlite.u-strasbg.fr/img/hips2fits?hips=CDS/P/DSS2/color&ra=${raDeg}&dec=${decDeg}&fov=${fov}&width=${size}&height=${size}&projection=TAN`
+function getPreviewUrl(targetId, raDeg, decDeg) {
+  if (targetId) return `/api/obscura/preview-proxy?targetId=${targetId}`
+  if (raDeg && decDeg) return `/api/obscura/preview-proxy?ra=${raDeg}&dec=${decDeg}`
+  return null
 }
 
 function getScoreColor(score) {
@@ -380,7 +380,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
                   onClick={() => setSelected(entry)}>
                   <img
                     className="wl-thumb"
-                    src={entry.preview_url || getDssUrl(entry.ra_deg, entry.dec_deg, entry.maj_axis_arcmin, 80)}
+                    src={getPreviewUrl(entry.target_id, entry.ra_deg, entry.dec_deg)}
                     alt="" loading="lazy" />
                   <div className="wl-item-info">
                     <div className="wl-item-name">{entry.messier_number ? `M${entry.messier_number} · ${entry.ngc_ic_id}` : entry.ngc_ic_id}</div>
@@ -416,7 +416,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
               {/* Header */}
               <div className="wr-header">
                 <img className="wr-dss-img"
-                  src={selected.preview_url || getDssUrl(selected.ra_deg, selected.dec_deg, selected.maj_axis_arcmin, 200)}
+                  src={getPreviewUrl(selected.target_id, selected.ra_deg, selected.dec_deg)}
                   alt="" loading="lazy" />
                 <div className="wr-header-info">
                   <div className="wr-target-name">{selected.messier_number ? `M${selected.messier_number} · ${selected.ngc_ic_id}` : selected.ngc_ic_id}</div>
@@ -558,7 +558,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
                     <div key={t.id} className={`wl-browser-item ${watched ? 'watched' : ''}`}
                       onClick={(e) => { e.stopPropagation(); if (!watched) addToWatchlist(t.id) }}>
                       <img className="wl-browser-thumb" loading="lazy"
-                        src={t.preview_url || getDssUrl(t.ra_deg || 0, t.dec_deg || 0, t.maj_axis_arcmin, 60)}
+                        src={getPreviewUrl(t.id, t.ra_deg, t.dec_deg)}
                         alt="" />
                       <div className="wl-browser-info">
                         <span className="wl-browser-name">{displayName}</span>

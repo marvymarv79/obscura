@@ -122,16 +122,16 @@
 .wr-night-row {
   display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
 }
-.wr-night-label { color: var(--text-muted); font-size: 12px; width: 80px; flex-shrink: 0; }
+.wr-night-label { color: var(--text-secondary); font-size: 12px; width: 80px; flex-shrink: 0; }
 .wr-night-bar-wrap { flex: 1; display: flex; align-items: center; gap: 8px; }
 .wr-night-bar { height: 6px; border-radius: 3px; min-width: 4px; }
-.wr-night-dur { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
-.wr-night-none { color: var(--text-dim); font-size: 11px; }
+.wr-night-dur { color: var(--text-secondary); font-size: 11px; white-space: nowrap; }
+.wr-night-none { color: var(--text-muted); font-size: 11px; }
 .wr-night-check { font-size: 12px; width: 16px; text-align: center; }
 
 /* Visibility calendar */
 .vis-calendar { margin-top: 16px; }
-.vis-label { color: var(--text-dim); font-size: 10px; margin-bottom: 6px; }
+.vis-label { color: var(--text-muted); font-size: 10px; margin-bottom: 6px; }
 .vis-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
 .vis-cell {
   aspect-ratio: 1; border-radius: 2px; border: 1px solid transparent;
@@ -147,7 +147,7 @@
 /* Multi-night stepper */
 .wr-stepper {
   display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-  color: var(--text-muted); font-size: 12px;
+  color: var(--text-secondary); font-size: 12px;
 }
 .wr-stepper button {
   background: var(--bg-card-hover); border: 1px solid var(--border-default);
@@ -160,16 +160,16 @@
 .wr-plan-night {
   display: flex; align-items: center; gap: 10px; font-size: 12px;
 }
-.wr-plan-n { color: var(--text-muted); width: 50px; flex-shrink: 0; }
+.wr-plan-n { color: var(--text-secondary); width: 50px; flex-shrink: 0; }
 .wr-plan-filters { display: flex; gap: 3px; }
 .wr-filter-pill {
   font-size: 10px; color: #fff; padding: 1px 6px; border-radius: 3px;
 }
-.wr-plan-dur { color: var(--text-dim); font-size: 11px; }
+.wr-plan-dur { color: var(--text-muted); font-size: 11px; }
 
 /* Alert info */
 .wr-alert-info {
-  color: var(--text-muted); font-size: 12px; display: flex; flex-direction: column; gap: 4px;
+  color: var(--text-secondary); font-size: 12px; display: flex; flex-direction: column; gap: 4px;
 }
 
 /* Actions */
