@@ -25,7 +25,7 @@ import { buildForecastDays } from './nightScore'
 import { seeingMetric, transparencyMetric, cloudMetric, windMetric, moonMetric, dewMetric } from './conditionsHelpers'
 import ImagingLog from './imaginglog'
 import GearEditor from './GearEditor'
-import PlansHistory from './components/PlansHistory'
+// PlansHistory removed — Plans tab now shows lightweight upcoming sessions linking to /mensura
 import Journal from './components/Journal'
 import SavePlanModal from './components/SavePlanModal'
 import Targets from './components/Targets'
@@ -130,6 +130,25 @@ function App() {
     }
     setPlansLoading(false)
   }, [get, isSignedIn])
+
+  const loadUpcomingPlans = useCallback(async () => {
+    if (!isSignedIn) return
+    setPlansLoading(true)
+    try {
+      const res = await fetch('/api/mensura/plans')
+      if (res.ok) {
+        const plans = await res.json()
+        const today = new Date().toISOString().split('T')[0]
+        const upcoming = (Array.isArray(plans) ? plans : [])
+          .filter(p => p.plan_date >= today && p.status === 'draft')
+          .slice(0, 3)
+        setSavedPlans(upcoming)
+      }
+    } catch (error) {
+      console.error('Failed to load upcoming plans:', error)
+    }
+    setPlansLoading(false)
+  }, [isSignedIn])
 
   // Load journal from API
   const loadJournal = useCallback(async () => {
@@ -657,7 +676,7 @@ function App() {
             <button className={`nav-pill ${mainTab === 'targets' ? 'active' : ''}`} onClick={() => setMainTab('targets')}>
               Targets {targets.length > 0 && <span className="pill-badge">{targets.length}</span>}
             </button>
-            <button className={`nav-pill ${mainTab === 'plans' ? 'active' : ''}`} onClick={() => { setMainTab('plans'); loadPlans() }}>Plans</button>
+            <button className={`nav-pill ${mainTab === 'plans' ? 'active' : ''}`} onClick={() => { setMainTab('plans'); loadUpcomingPlans() }}>Plans</button>
             <button className={`nav-pill ${mainTab === 'journal' ? 'active' : ''}`} onClick={() => { setMainTab('journal'); loadJournal() }}>Journal</button>
           </div>
           <div className="nav-right">
@@ -682,21 +701,45 @@ function App() {
             </div>
           )}
 
-          {/* Plans Tab */}
+          {/* Plans Tab — Upcoming Sessions (read-only) */}
           {mainTab === 'plans' && (
-            <PlansHistory
-              plans={savedPlans}
-              loading={plansLoading}
-              onSavePlan={handleSavePlan}
-              onClonePlan={handleClonePlan}
-              onDeletePlan={handleDeletePlan}
-              onRefresh={loadPlans}
-              savedLocations={savedLocations}
-              coords={coords}
-              onSwitchTab={(tab) => setMainTab(tab)}
-              onPrefillJournal={(data) => setJournalPrefill(data)}
-              forecastScore={forecastDays[0]?.score || null}
-            />
+            <div className="upcoming-sessions">
+              <h3 style={{ color: 'var(--text-primary)', marginBottom: 12 }}>Upcoming Sessions</h3>
+              {plansLoading ? (
+                <div style={{ color: 'var(--text-dim)', padding: 16 }}>Loading...</div>
+              ) : savedPlans.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>
+                  <p>No upcoming sessions planned.</p>
+                  <a href="/mensura" style={{ color: 'var(--accent-crimson)', fontSize: 14 }}>Build one in Mensura →</a>
+                </div>
+              ) : (
+                <>
+                  {savedPlans.map(plan => (
+                    <div key={plan.id} className="upcoming-plan-card">
+                      <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 13 }}>
+                        {new Date(plan.plan_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{plan.location_name}</div>
+                      {plan.target_names && plan.target_names.length > 0 && (
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>
+                          {plan.target_count || plan.target_names.length} target{plan.target_count !== 1 ? 's' : ''} · {plan.target_names[0]}
+                        </div>
+                      )}
+                      {plan.forecast_score != null && (
+                        <span style={{ fontWeight: 600, fontSize: 12, color: plan.forecast_score >= 70 ? 'var(--accent-green)' : plan.forecast_score >= 40 ? 'var(--accent-ember)' : 'var(--accent-crimson)' }}>
+                          {plan.forecast_score}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  <a href="/mensura" className="open-mensura-link" style={{
+                    display: 'block', textAlign: 'center', marginTop: 16,
+                    padding: '10px 20px', background: 'var(--accent-crimson)', color: '#fff',
+                    borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14
+                  }}>Open Mensura →</a>
+                </>
+              )}
+            </div>
           )}
 
           {/* Journal Tab */}
