@@ -33,16 +33,28 @@ async function handler(req, res, userId) {
       .where(eq(imagingPlanTargets.planId, planId))
 
     // Fetch full target data from targets table
+    // targetId in imaging_plan_targets is varchar — stores NGC/IC id strings (e.g. "NGC2632")
+    // Also try numeric IDs for plans created from the Targets tab (which stores numeric DB ids)
     const sql = neon(process.env.DATABASE_URL)
-    const targetIds = planTargets.map(t => parseInt(t.targetId)).filter(id => !isNaN(id))
+    const ngcIds = planTargets.map(t => t.targetId).filter(Boolean)
+    const numericIds = ngcIds.map(id => parseInt(id)).filter(id => !isNaN(id))
 
     let dbTargets = []
-    if (targetIds.length > 0) {
+    if (ngcIds.length > 0) {
+      // Try matching by ngc_ic_id first (string IDs like "NGC2632")
       dbTargets = await sql`
         SELECT id, ngc_ic_id, common_name, messier_number, object_type,
           best_imaging_type, ra_deg, dec_deg, maj_axis_arcmin, magnitude, preview_url
-        FROM targets WHERE id = ANY(${targetIds})
+        FROM targets WHERE ngc_ic_id = ANY(${ngcIds})
       `
+      // If no matches and we have numeric IDs, try by primary key id
+      if (dbTargets.length === 0 && numericIds.length > 0) {
+        dbTargets = await sql`
+          SELECT id, ngc_ic_id, common_name, messier_number, object_type,
+            best_imaging_type, ra_deg, dec_deg, maj_axis_arcmin, magnitude, preview_url
+          FROM targets WHERE id = ANY(${numericIds})
+        `
+      }
     }
 
     // Fetch imaging profiles for train names
@@ -61,7 +73,9 @@ async function handler(req, res, userId) {
 
     const snapshotTargets = []
     for (const pt of planTargets) {
-      const targetData = dbTargets.find(t => t.id === parseInt(pt.targetId))
+      const targetData = dbTargets.find(t =>
+        t.ngc_ic_id === pt.targetId || String(t.id) === pt.targetId
+      )
       if (!targetData) {
         snapshotTargets.push({
           targetId: pt.targetId,

@@ -129,8 +129,13 @@ export default function PlansHistory({
   }, [forecastScore])
 
   const openSlideIn = async (plan) => {
-    const enriched = await buildSnapshot(plan)
-    setSlideInPlan(enriched)
+    // Show panel immediately with whatever data we have
+    setSlideInPlan(plan)
+    // If no snapshot, compute one
+    if (!plan.planSnapshot && !plan.plan_snapshot) {
+      const enriched = await buildSnapshot(plan)
+      setSlideInPlan(enriched)
+    }
   }
 
   const handleMarkComplete = async () => {
@@ -423,10 +428,10 @@ export default function PlansHistory({
               <div key={plan.id} className="plan-card" onClick={() => openSlideIn(plan)}>
                 <div className="plan-card-header">
                   <div className="plan-card-main">
-                    <span className="plan-card-date">{formatDate(plan.planDate)}</span>
-                    {plan.locationName && <span className="plan-card-loc"> · {plan.locationName}</span>}
+                    <div className="plan-card-date">{formatDate(plan.planDate)}</div>
+                    {plan.locationName && <div className="plan-card-loc">{plan.locationName}</div>}
+                    <div className="plan-card-targets-summary">{snapshotTargetSummary(plan)}</div>
                   </div>
-                  <div className="plan-card-targets-summary">{snapshotTargetSummary(plan)}</div>
                   <div className="plan-card-badges">
                     {fScore != null && (
                       <span className="plan-forecast-badge" style={{ color: getScoreColor(fScore) }}>{fScore}</span>
