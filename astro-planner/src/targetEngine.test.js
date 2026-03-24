@@ -115,10 +115,10 @@ console.log('\n=== Test 3: scoreTarget — good conditions ===')
   }
 }
 
-// ─── Test 4: getFilterSequence for mono camera ───
-console.log('\n=== Test 4: getFilterSequence — mono camera ===')
+// ─── Test 4: getFilterSequence for narrowband target + mono camera ───
+console.log('\n=== Test 4: getFilterSequence — narrowband + mono ===')
 {
-  const target = { ra_deg: 83.82, dec_deg: -5.39 }
+  const target = { ra_deg: 83.82, dec_deg: -5.39, best_imaging_type: 'narrowband' }
   const start = new Date('2024-01-15T01:00:00Z')
   const end = new Date('2024-01-15T10:00:00Z')
   const imagingWindow = { start, end, duration_minutes: 540 }
@@ -146,17 +146,33 @@ console.log('\n=== Test 4: getFilterSequence — mono camera ===')
     )
     assert('all blocks have required fields', allValid)
 
-    // Blue should be before Red in the sequence
-    const blueIdx = blocks.findIndex(b => b.filter === 'B')
-    const redIdx = blocks.findIndex(b => b.filter === 'R')
-    if (blueIdx >= 0 && redIdx >= 0) {
-      assert(
-        'Blue scheduled before Red',
-        blueIdx < redIdx,
-        `Blue at ${blueIdx}, Red at ${redIdx}`
-      )
-    }
+    // Narrowband targets should have Ha or SII or OIII
+    const hasNB = filters.some(f => ['Ha', 'SII', 'OIII'].includes(f))
+    assert('narrowband target has NB filters', hasNB)
   }
+}
+
+// ─── Test 4a: getFilterSequence for broadband target + mono camera ───
+console.log('\n=== Test 4a: getFilterSequence — broadband + mono ===')
+{
+  const target = { ra_deg: 83.82, dec_deg: -5.39, best_imaging_type: 'lrgb' }
+  const start = new Date('2024-01-15T01:00:00Z')
+  const end = new Date('2024-01-15T10:00:00Z')
+  const imagingWindow = { start, end, duration_minutes: 540 }
+  const transitTime = new Date('2024-01-15T05:30:00Z')
+
+  const blocks = getFilterSequence(target, imagingWindow, transitTime, 'Mono')
+  const filters = blocks.map(b => b.filter)
+
+  assert('broadband returns array', Array.isArray(blocks))
+  assert(`broadband has ≥3 blocks (got ${blocks.length})`, blocks.length >= 3)
+  assert('broadband has L', filters.includes('L'))
+  assert('broadband has R', filters.includes('R'))
+  assert('broadband has B', filters.includes('B'))
+  assert('broadband has G', filters.includes('G'))
+  // Should NOT have narrowband filters
+  const hasNB = filters.some(f => ['Ha', 'SII', 'OIII'].includes(f))
+  assert('broadband has no NB filters', !hasNB)
 }
 
 // ─── Test 4b: getFilterSequence for OSC camera ───

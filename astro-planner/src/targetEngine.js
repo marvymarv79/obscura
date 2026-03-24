@@ -300,6 +300,8 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
 
   const { start, end } = imagingWindow
 
+  if (target.best_imaging_type === 'visual') return []
+
   if (cameraType === 'OSC') {
     return [{
       filter: 'OSC',
@@ -350,22 +352,23 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
   }
   if (current) groups.push(current)
 
-  // Assign filters to zones
-  // High (near transit): Luminance
-  // Mid: OIII, G, B (blue highest among mid)
-  // Low: Ha, R, SII
+  // Assign filters based on target type + camera type
+  const isNarrowband = target.best_imaging_type === 'narrowband'
+  // For broadband/lrgb targets: L, R, G, B
+  // For narrowband targets: Ha, SII, OIII (+ L at transit)
+
   const midGroups = groups.filter(g => g.zone === 'mid')
   const lowGroups = groups.filter(g => g.zone === 'low')
 
-  // Sort mid groups by proximity to transit (closest gets Blue)
+  // Sort mid groups by proximity to transit (closest gets priority filter)
   midGroups.sort((a, b) => {
     const aDist = Math.abs((a.start.getTime() + a.end.getTime()) / 2 - transitTime.getTime())
     const bDist = Math.abs((b.start.getTime() + b.end.getTime()) / 2 - transitTime.getTime())
     return aDist - bDist
   })
 
-  const midFilters = ['B', 'OIII', 'G']
-  const lowFilters = ['Ha', 'SII', 'R'] // Red last
+  const midFilters = isNarrowband ? ['B', 'OIII', 'G'] : ['B', 'G', 'G']
+  const lowFilters = isNarrowband ? ['Ha', 'SII', 'R'] : ['R', 'R', 'R']
 
   for (const group of groups) {
     const blockEnd = new Date(group.end.getTime() + stepMs)
@@ -382,7 +385,7 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
     } else if (group.zone === 'mid') {
       const idx = midGroups.indexOf(group)
       const filter = midFilters[Math.min(idx, midFilters.length - 1)]
-      const subLen = filter === 'OIII' ? 300 : 180
+      const subLen = (filter === 'OIII' || filter === 'Ha' || filter === 'SII') ? 300 : 180
       blocks.push({
         filter,
         start: formatTime(group.start),
@@ -393,7 +396,7 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
     } else {
       const idx = lowGroups.indexOf(group)
       const filter = lowFilters[Math.min(idx, lowFilters.length - 1)]
-      const subLen = (filter === 'Ha' || filter === 'SII') ? 300 : 180
+      const subLen = (filter === 'Ha' || filter === 'SII' || filter === 'OIII') ? 300 : 180
       blocks.push({
         filter,
         start: formatTime(group.start),

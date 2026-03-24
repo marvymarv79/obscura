@@ -151,7 +151,7 @@ function AltitudeChart({ altitudeCurve, imagingWindow, filterSequence, minAlt })
   )
 }
 
-export default function Targets({ coords, moon, selectedTargets, onSelectTarget }) {
+export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated }) {
   const [targets, setTargets] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -163,6 +163,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailData, setDetailData] = useState(null)
   const [imagingTrains, setImagingTrains] = useState([])
+  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     fetch('/api/apertura/profiles')
@@ -230,6 +231,63 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
     setDetailLoading(false)
   }
 
+  const showToast = (msg) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const addToPlan = async (target, detail) => {
+    if (!coords) return
+    const tonight = new Date().toISOString().split('T')[0]
+    try {
+      // Try to find existing plan for tonight
+      const plansResp = await fetch('/api/plans', {
+        headers: { 'Content-Type': 'application/json' }
+      })
+      let existingPlan = null
+      if (plansResp.ok) {
+        const plans = await plansResp.json()
+        existingPlan = plans.find(p => p.planDate === tonight)
+      }
+
+      const targetEntry = {
+        targetId: target.ngc_ic_id,
+        targetName: target.common_name || target.ngc_ic_id,
+        priority: 1,
+        visibilityScore: detail.score,
+        defaultSetupId: detail.bestTrainId ? String(detail.bestTrainId) : null,
+        transitTime: detail.transitTime || null,
+        moonSeparation: detail.moonSeparation || null,
+        notes: detail.bestTrainName || null
+      }
+
+      // Create new plan with this target
+      const planData = {
+        name: `Session ${tonight}`,
+        planDate: tonight,
+        locationName: locationName || 'Unknown',
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        targets: [targetEntry]
+      }
+
+      const resp = await fetch('/api/plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(planData)
+      })
+
+      if (resp.ok) {
+        showToast('Added to tonight\'s plan')
+        if (onPlanCreated) onPlanCreated()
+      } else {
+        showToast('Could not add to plan — try again')
+      }
+    } catch (e) {
+      showToast('Could not add to plan — try again')
+    }
+  }
+
   const sortedTargets = [...targets].sort((a, b) => {
     if (sortBy === 'score') return b.score - a.score
     if (sortBy === 'window') {
@@ -276,8 +334,14 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
             onClick={() => setSortBy(sortBy === 'score' ? 'window' : 'score')}>
             {sortBy === 'score' ? 'By Score' : 'By Window'}
           </button>
+          <span className="targets-location-indicator">
+            {coords ? `${locationName || `${coords.latitude.toFixed(2)}, ${coords.longitude.toFixed(2)}`}` : 'No location — select one on Tonight tab'}
+          </span>
         </div>
       </div>
+
+      {/* Toast */}
+      {toast && <div className="targets-toast">{toast}</div>}
 
       {/* Error */}
       {error && <div className="targets-error">{error}</div>}
@@ -360,6 +424,16 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
                         {/* Section 1: Overview */}
                         <div className="detail-section">
                           <div className="detail-section-title">Overview</div>
+                          <div className="detail-overview-meta">
+                            <span className="tc-type-badge" style={{ background: TYPE_COLORS[target.object_type] || '#666' }}>
+                              {TYPE_LABELS[target.object_type] || target.object_type}
+                            </span>
+                            {target.maj_axis_arcmin && (
+                              <span className="detail-size">Size: {parseFloat(target.maj_axis_arcmin).toFixed(1)}′
+                                {target.min_axis_arcmin ? ` × ${parseFloat(target.min_axis_arcmin).toFixed(1)}′` : ''}
+                              </span>
+                            )}
+                          </div>
                           <div className="detail-coords">
                             RA {parseFloat(target.ra_deg).toFixed(2)}° / Dec {parseFloat(target.dec_deg).toFixed(2)}°
                             {target.magnitude && <span> · mag {parseFloat(target.magnitude).toFixed(1)}</span>}
@@ -388,7 +462,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
                               <span>{formatTime(detailData.imagingWindow.start)} — {formatTime(detailData.imagingWindow.end)}</span>
                               <span>{formatDuration(detailData.imagingWindow.duration_minutes)}</span>
                               <span>Transit {formatTime(detailData.transitTime)} at {detailData.maxAltitude}°</span>
-                              <span>Moon {detailData.moonSeparation}° away</span>
+                              <span>Moon {detailData.moonSeparation}° away{moon ? ` · ${Math.round(moon.illumination || 0)}% illuminated` : ''}</span>
                             </div>
                           )}
                           <AltitudeChart
@@ -445,21 +519,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget 
                         {/* Section 5: Add to Plan */}
                         <div className="detail-section">
                           <button className="add-to-plan-btn"
-                            onClick={() => {
-                              if (onSelectTarget) {
-                                onSelectTarget({
-                                  id: target.ngc_ic_id,
-                                  target,
-                                  score: detailData.score,
-                                  filterSequence: detailData.filterSequence,
-                                  imagingWindow: detailData.imagingWindow,
-                                  transitTime: detailData.transitTime,
-                                  maxAltitude: detailData.maxAltitude,
-                                  bestTrainId: detailData.bestTrainId,
-                                  bestTrainName: detailData.bestTrainName
-                                })
-                              }
-                            }}>
+                            onClick={() => addToPlan(target, detailData)}>
                             Add to Tonight's Plan
                           </button>
                         </div>
