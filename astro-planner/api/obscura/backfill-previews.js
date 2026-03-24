@@ -49,17 +49,21 @@ export default async function handler(req, res) {
           const fovRaw = Math.max(parseFloat(target.maj_axis_arcmin) || 20, 20) / 60 * 2.5
           const fov = Math.max(0.1, Math.min(10.0, fovRaw))
 
-          const dssUrl = `https://aladinlite.u-strasbg.fr/img/hips2fits?hips=CDS/P/DSS2/color&ra=${target.ra_deg}&dec=${target.dec_deg}&fov=${fov}&width=300&height=300&projection=TAN`
+          // Use STScI DSS server (more reliable from Vercel than Strasbourg)
+          const fovArcmin = fov * 60
+          const dssUrl = `https://archive.stsci.edu/cgi-bin/dss_search?v=poss2ukstu_red&r=${target.ra_deg}&d=${target.dec_deg}&e=J2000&h=${fovArcmin}&w=${fovArcmin}&f=gif&c=none&fov=NONE&v3=`
 
-          const dssResponse = await fetch(dssUrl, { signal: AbortSignal.timeout(10000) })
+          const dssResponse = await fetch(dssUrl, { signal: AbortSignal.timeout(15000) })
           if (!dssResponse.ok) throw new Error(`DSS HTTP ${dssResponse.status} for ${target.ngc_ic_id}`)
 
           const imageBuffer = await dssResponse.arrayBuffer()
-          const filename = `target-previews/${target.ngc_ic_id}.jpg`
+          const contentType = dssResponse.headers.get('content-type') || 'image/gif'
+          const ext = contentType.includes('gif') ? 'gif' : 'jpg'
+          const filename = `target-previews/${target.ngc_ic_id}.${ext}`
 
           const blob = await put(filename, Buffer.from(imageBuffer), {
             access: 'public',
-            contentType: 'image/jpeg',
+            contentType,
             token: process.env.BLOB_READ_WRITE_TOKEN
           })
 
