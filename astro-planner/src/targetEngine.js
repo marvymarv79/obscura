@@ -312,91 +312,82 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
     }]
   }
 
-  // Mono camera — assign filters by proximity to transit
-  // Slots closest to transit get the best-seeing filter
+  // Mono camera — build contiguous filter blocks outward from transit
   const isNarrowband = target.best_imaging_type === 'narrowband'
-  const stepMs = 5 * 60 * 1000
-  const totalMs = end.getTime() - start.getTime()
-  const transitMs = transitTime.getTime()
+  const startMs = start.getTime()
+  const endMs = end.getTime()
+  const totalMs = endMs - startMs
 
-  // Filter priority: index 0 = best seeing (near transit), last = worst
-  let filterPlan
+  if (totalMs <= 0) return []
+
+  // Clamp transit to within the imaging window
+  let transitMs = transitTime.getTime()
+  if (transitMs < startMs) transitMs = startMs
+  if (transitMs > endMs) transitMs = endMs
+
+  // Build blocks working outward from transit
+  let filterBlocks
   if (isNarrowband) {
-    filterPlan = [
-      { filter: 'OIII', pct: 0.30, subLen: 300 },
-      { filter: 'Ha', pct: 0.40, subLen: 300 },
-      { filter: 'SII', pct: 0.30, subLen: 300 }
-    ]
+    // Narrowband: Ha near transit (40%), OIII before (30%), SII after (30%)
+    const haDur = Math.round(totalMs * 0.40)
+    const oiiiDur = Math.round(totalMs * 0.30)
+    // Ha centered on transit
+    let haStart = Math.max(startMs, transitMs - Math.round(haDur / 2))
+    let haEnd = Math.min(endMs, haStart + haDur)
+    // Adjust if clamped
+    if (haEnd - haStart < haDur) haStart = Math.max(startMs, haEnd - haDur)
+    // OIII before Ha
+    const oiiiStart = startMs
+    const oiiiEnd = haStart
+    // SII after Ha
+    const siiStart = haEnd
+    const siiEnd = endMs
+
+    filterBlocks = []
+    if (oiiiEnd > oiiiStart) filterBlocks.push({ filter: 'OIII', subLen: 300, s: oiiiStart, e: oiiiEnd })
+    if (haEnd > haStart) filterBlocks.push({ filter: 'Ha', subLen: 300, s: haStart, e: haEnd })
+    if (siiEnd > siiStart) filterBlocks.push({ filter: 'SII', subLen: 300, s: siiStart, e: siiEnd })
   } else {
-    filterPlan = [
-      { filter: 'L', pct: 0.25, subLen: 300 },
-      { filter: 'B', pct: 0.20, subLen: 180 },
-      { filter: 'G', pct: 0.20, subLen: 180 },
-      { filter: 'R', pct: 0.35, subLen: 180 }
-    ]
+    // Broadband LRGB: L covers transit (extends to include it),
+    // then B, G, R fill remaining time after L
+    // L must contain transit — extend from window start to at least transit + buffer
+    const minLEnd = Math.min(endMs, transitMs + Math.round(totalMs * 0.05))
+    const lDur = Math.max(Math.round(totalMs * 0.40), minLEnd - startMs)
+    const lStart = startMs
+    const lEnd = Math.min(endMs, lStart + lDur)
+
+    const remainMs = endMs - lEnd
+    const bDur = Math.round(remainMs * 0.33)
+    const gDur = Math.round(remainMs * 0.33)
+
+    // B follows L
+    const bStart = lEnd
+    const bEnd = Math.min(endMs, bStart + bDur)
+    // G follows B
+    const gStart = bEnd
+    const gEnd = Math.min(endMs, gStart + gDur)
+    // R fills remainder
+    const rStart = gEnd
+    const rEnd = endMs
+
+    filterBlocks = []
+    if (lEnd > lStart) filterBlocks.push({ filter: 'L', subLen: 300, s: lStart, e: lEnd })
+    if (bEnd > bStart) filterBlocks.push({ filter: 'B', subLen: 180, s: bStart, e: bEnd })
+    if (gEnd > gStart) filterBlocks.push({ filter: 'G', subLen: 180, s: gStart, e: gEnd })
+    if (rEnd > rStart) filterBlocks.push({ filter: 'R', subLen: 180, s: rStart, e: rEnd })
   }
 
-  // Create time slots and sort by distance from transit
-  const slots = []
-  for (let t = start.getTime(); t < end.getTime(); t += stepMs) {
-    slots.push({ time: t, distFromTransit: Math.abs(t + stepMs / 2 - transitMs) })
-  }
-  // Sort by distance from transit (closest first)
-  const sortedSlots = [...slots].sort((a, b) => a.distFromTransit - b.distFromTransit)
-
-  // Assign filter to each slot based on priority percentages
-  const totalSlots = sortedSlots.length
-  const filterAssignments = new Map() // time -> filter plan entry
-  let assignedCount = 0
-  for (const plan of filterPlan) {
-    const slotCount = Math.max(1, Math.round(totalSlots * plan.pct))
-    for (let i = 0; i < slotCount && assignedCount < totalSlots; i++) {
-      filterAssignments.set(sortedSlots[assignedCount].time, plan)
-      assignedCount++
+  // Convert to output format
+  return filterBlocks.map(b => {
+    const durSec = (b.e - b.s) / 1000
+    return {
+      filter: b.filter,
+      start: formatTime(new Date(b.s)),
+      end: formatTime(new Date(b.e)),
+      subLength: b.subLen,
+      estimatedSubs: Math.floor(durSec / b.subLen)
     }
-  }
-  // Assign remaining slots to last filter
-  while (assignedCount < totalSlots) {
-    filterAssignments.set(sortedSlots[assignedCount].time, filterPlan[filterPlan.length - 1])
-    assignedCount++
-  }
-
-  // Now walk chronologically and group consecutive same-filter slots into blocks
-  const blocks = []
-  let currentBlock = null
-  for (const slot of slots) {
-    const plan = filterAssignments.get(slot.time)
-    if (!currentBlock || currentBlock.filter !== plan.filter) {
-      if (currentBlock) {
-        const blockEnd = new Date(currentBlock.endTime + stepMs)
-        const durSec = (blockEnd.getTime() - currentBlock.startTime) / 1000
-        blocks.push({
-          filter: currentBlock.filter,
-          start: formatTime(new Date(currentBlock.startTime)),
-          end: formatTime(blockEnd),
-          subLength: currentBlock.subLen,
-          estimatedSubs: Math.floor(durSec / currentBlock.subLen)
-        })
-      }
-      currentBlock = { filter: plan.filter, subLen: plan.subLen, startTime: slot.time, endTime: slot.time }
-    } else {
-      currentBlock.endTime = slot.time
-    }
-  }
-  // Flush last block
-  if (currentBlock) {
-    const blockEnd = new Date(currentBlock.endTime + stepMs)
-    const durSec = (blockEnd.getTime() - currentBlock.startTime) / 1000
-    blocks.push({
-      filter: currentBlock.filter,
-      start: formatTime(new Date(currentBlock.startTime)),
-      end: formatTime(blockEnd),
-      subLength: currentBlock.subLen,
-      estimatedSubs: Math.floor(durSec / currentBlock.subLen)
-    })
-  }
-
-  return blocks
+  }).filter(b => b.estimatedSubs > 0)
 }
 
 function formatTime(date) {

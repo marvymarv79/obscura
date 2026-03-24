@@ -173,17 +173,23 @@ console.log('\n=== Test 4a: getFilterSequence — broadband + mono ===')
   const hasNB = filters.some(f => ['Ha', 'SII', 'OIII'].includes(f))
   assert('broadband has no NB filters', !hasNB)
 
-  // L should be near transit (05:30 UTC), not at the edges
+  // L should be the FIRST block (starts at window start, covers transit)
   const lBlock = blocks.find(b => b.filter === 'L')
   const rBlock = blocks.find(b => b.filter === 'R')
   if (lBlock && rBlock) {
-    // L start time should be closer to 05:30 than R start time
-    // Parse HH:MM to minutes for comparison
+    assert(`L is first block (starts at ${blocks[0]?.filter})`, blocks[0]?.filter === 'L')
+    assert(`R is last block (ends at ${blocks[blocks.length - 1]?.filter})`, blocks[blocks.length - 1]?.filter === 'R')
+    // Transit (05:30) must fall within L block
     const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
-    const transitMin = 5 * 60 + 30 // 05:30
-    const lDist = Math.min(Math.abs(toMin(lBlock.start) - transitMin), Math.abs(toMin(lBlock.start) + 1440 - transitMin))
-    const rDist = Math.min(Math.abs(toMin(rBlock.start) - transitMin), Math.abs(toMin(rBlock.start) + 1440 - transitMin))
-    assert(`L closer to transit than R (L=${lBlock.start}, R=${rBlock.start})`, lDist < rDist)
+    const transitMin = 5 * 60 + 30
+    const lStart = toMin(lBlock.start)
+    const lEnd = toMin(lBlock.end)
+    const lContainsTransit = lStart <= transitMin && lEnd >= transitMin
+    assert(`L block contains transit time (L=${lBlock.start}-${lBlock.end}, transit=05:30)`, lContainsTransit)
+    // B should follow L
+    const bIdx = blocks.findIndex(b => b.filter === 'B')
+    const lIdx = blocks.findIndex(b => b.filter === 'L')
+    assert(`B follows L (L idx=${lIdx}, B idx=${bIdx})`, bIdx === lIdx + 1)
   }
 }
 

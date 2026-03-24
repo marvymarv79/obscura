@@ -24,13 +24,24 @@ export function useApi() {
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Request failed' }))
-      // Include details for better debugging
-      const message = error.details || error.error || 'Request failed'
+      const text = await response.text()
+      let message = `Request failed (${response.status})`
+      try {
+        const parsed = JSON.parse(text)
+        message = parsed.details || parsed.error || message
+      } catch {
+        // Response was not JSON (e.g. HTML error page)
+      }
       throw new Error(message)
     }
 
-    return response.json()
+    const text = await response.text()
+    if (!text) return null
+    try {
+      return JSON.parse(text)
+    } catch {
+      throw new Error('Invalid JSON response from server')
+    }
   }, [getToken, isSignedIn])
 
   const get = useCallback((url) => fetchWithAuth(url), [fetchWithAuth])

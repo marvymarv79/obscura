@@ -509,9 +509,8 @@ function App() {
   }
 
   const handleDeletePlan = async (planId) => {
-    if (!confirm('Delete this plan?')) return
     try {
-      await del(`/api/plans/${planId}`)
+      await post('/api/plans/delete', { id: planId })
       setSavedPlans(prev => prev.filter(p => p.id !== planId))
     } catch (error) {
       alert('Failed to delete plan: ' + error.message)
@@ -654,7 +653,7 @@ function App() {
                 coords={coords}
                 moon={moon}
                 selectedTargets={selectedTargets}
-                locationName={locationName || savedLocations.find(l => coords && parseFloat(l.latitude) === coords.latitude && parseFloat(l.longitude) === coords.longitude)?.name}
+                locationName={coords?.locationName || locationName || savedLocations.find(l => coords && parseFloat(l.latitude) === coords.latitude && parseFloat(l.longitude) === coords.longitude)?.name}
                 onPlanCreated={loadPlans}
                 onAddToPlan={handleSavePlan}
                 onSelectTarget={(targetData) => {
