@@ -11,7 +11,10 @@ export default function Journal({
   onDeleteEntry,
   onCreateTag,
   onDeleteTag,
-  onRefresh
+  onRefresh,
+  prefillData,
+  onPrefillConsumed,
+  onSwitchTab
 }) {
   const [showEditor, setShowEditor] = useState(false)
   const [editingEntry, setEditingEntry] = useState(null)
@@ -32,6 +35,20 @@ export default function Journal({
   // Imaging train profiles from Apertura
   const [imagingTrains, setImagingTrains] = useState([])
   const [trainsLoading, setTrainsLoading] = useState(false)
+
+  // Handle prefill from Plans tab
+  useEffect(() => {
+    if (prefillData) {
+      setTitle(prefillData.title || '')
+      setContent(prefillData.content || '')
+      setEntryDate(prefillData.entryDate || new Date().toISOString().split('T')[0])
+      setSelectedTags([])
+      setProcessingSoftware([])
+      setShowEditor(true)
+      setEditingEntry(null)
+      if (onPrefillConsumed) onPrefillConsumed()
+    }
+  }, [prefillData]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setTrainsLoading(true)
@@ -254,6 +271,11 @@ export default function Journal({
               </div>
               {getTrainName(entry.imagingTrainId) && (
                 <div className="entry-imaging-train">{getTrainName(entry.imagingTrainId)}</div>
+              )}
+              {(entry.planId || entry.plan_id || entry.imagingPlanId || entry.imaging_plan_id) && onSwitchTab && (
+                <button className="entry-plan-link" onClick={(e) => { e.stopPropagation(); onSwitchTab('plans') }}>
+                  View plan →
+                </button>
               )}
               {entry.content && (
                 <p className="entry-preview">
