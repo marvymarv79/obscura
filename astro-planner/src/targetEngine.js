@@ -329,24 +329,11 @@ export function getFilterSequence(target, imagingWindow, transitTime, cameraType
   // Build blocks working outward from transit
   let filterBlocks
   if (isNarrowband) {
-    // Narrowband: split window into thirds — Ha (rising), OIII (peak), SII (setting)
-    // Minimum 5min (1 sub) per filter; skip entirely if window < 15min
-    if (totalMs < 15 * 60 * 1000) return []
-
-    const haDur = Math.round(totalMs / 3)
-    const oiiiDur = Math.round(totalMs / 3)
-
-    const haStart = startMs
-    const haEnd = haStart + haDur
-    const oiiiStart = haEnd
-    const oiiiEnd = oiiiStart + oiiiDur
-    const siiStart = oiiiEnd
-    const siiEnd = endMs
-
-    filterBlocks = []
-    filterBlocks.push({ filter: 'Ha', subLen: 300, s: haStart, e: haEnd })
-    filterBlocks.push({ filter: 'OIII', subLen: 300, s: oiiiStart, e: oiiiEnd })
-    filterBlocks.push({ filter: 'SII', subLen: 300, s: siiStart, e: siiEnd })
+    // Narrowband filter sequencing is handled by the LLM endpoint:
+    //   POST /api/obscura/filter-sequence
+    // The async call happens in the component layer via fetchNarrowbandSequence().
+    // Return empty array here — the component will populate filterSequence from the API response.
+    return []
   } else {
     // Broadband LRGB: L covers transit (extends to include it),
     // then B, G, R fill remaining time after L
@@ -404,8 +391,15 @@ function formatTime(date, utcOffsetMinutes = 0) {
 
 /**
  * Returns recommended sub exposure in seconds.
+ * Returns null if wind > 25 mph — callers must handle null.
  */
-export function getSubExposure(filter, imagingTrain, targetMagnitude) {
+export function getSubExposure(filter, imagingTrain, targetMagnitude, forecastSlice) {
+  // Wind check — abort if any forecast slot exceeds 25 mph
+  if (Array.isArray(forecastSlice)) {
+    const maxWind = Math.max(...forecastSlice.map(s => s.windSpeed ?? 0))
+    if (maxWind > 25) return null
+  }
+
   const baseExposures = {
     L: 300, R: 180, G: 180, B: 180,
     Ha: 300, SII: 300, OIII: 300,
@@ -423,10 +417,44 @@ export function getSubExposure(filter, imagingTrain, targetMagnitude) {
 
   // Round to nearest 30s
   exposure = Math.round(exposure / 30) * 30
-  // Clamp
-  exposure = Math.max(60, Math.min(600, exposure))
+
+  // Clamp — narrowband allows longer subs (60–900s), broadband + OSC caps at 600s
+  const isNarrowband = ['Ha', 'OIII', 'SII'].includes(filter)
+  const maxExposure = isNarrowband ? 900 : 600
+  exposure = Math.max(60, Math.min(maxExposure, exposure))
 
   return exposure
+}
+
+// ─── Narrowband LLM Sequence ─────────────────────────────
+
+/**
+ * Fetches narrowband filter sequence from the LLM endpoint.
+ * Returns { filterSequence, strategy, sessionRationale } on success.
+ * Returns null on failure — caller should fall back to local getFilterSequence().
+ */
+export async function fetchNarrowbandSequence(payload) {
+  try {
+    const res = await fetch('/api/obscura/filter-sequence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    const contentType = res.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      console.error('[fetchNarrowbandSequence] Non-JSON response:', res.status)
+      return null
+    }
+    const data = await res.json()
+    if (data.fallback || data.error) {
+      console.error('[fetchNarrowbandSequence] Endpoint error:', data.error)
+      return null
+    }
+    return data
+  } catch (err) {
+    console.error('[fetchNarrowbandSequence] Fetch failed:', err.message)
+    return null
+  }
 }
 
 // ─── HDR Flag ────────────────────────────────────────────
