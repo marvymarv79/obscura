@@ -359,7 +359,8 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
             const isExpanded = detailTarget?.id === target.id
             return (
               <div key={target.id}>
-                <div className={`target-card-new ${isExpanded ? 'expanded' : ''}`}>
+                <div className={`target-card-new ${isExpanded ? 'expanded' : ''}`}
+                  onClick={() => fetchDetail(target)} style={{ cursor: 'pointer' }}>
                   <img className="tc-thumb" loading="lazy"
                     src={getPreviewUrl(target.id, target.ra_deg, target.dec_deg)}
                     alt=""

@@ -9,7 +9,7 @@ function Hub() {
     <div className="hub">
       <header className="hub-hero">
         <h1 className="hub-title">marvymarv</h1>
-        <p className="hub-subtitle">Tools for the things I love.</p>
+        <p className="hub-subtitle">tools for the stuff i do</p>
       </header>
 
       <section className="hub-grid">

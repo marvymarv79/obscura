@@ -64,18 +64,31 @@ async function handler(req, res, userId) {
     const hdr = needsHDR(target)
     const filterSeq = getFilterSequence(target, imagingWindow, transitTime, 'mono', utcOffset)
 
+    const filterBlocks = (filterSeq || []).map(b => ({
+      filter: b.filter,
+      start: b.start,
+      end: b.end,
+      estimatedSubs: b.estimatedSubs,
+      subLength: b.subLength,
+      totalMinutes: b.estimatedSubs ? Math.round(b.estimatedSubs * b.subLength / 60) : 0
+    }))
+    const totalIntegrationMinutes = filterBlocks.reduce((s, b) => s + (b.totalMinutes || 0), 0)
+
     const snapshot = {
-      target_name: target.common_name || target.ngc_ic_id,
+      targetName: target.common_name || target.ngc_ic_id,
       score: score ? score.score : null,
-      components: score ? score.components : null,
-      imaging_window: imagingWindow ? {
+      scoreComponents: score ? score.components : null,
+      imagingWindow: imagingWindow ? {
         start: formatTimeOffset(imagingWindow.start, utcOffset),
         end: formatTimeOffset(imagingWindow.end, utcOffset),
-        duration_minutes: imagingWindow.duration_minutes
+        durationMinutes: imagingWindow.duration_minutes
       } : null,
-      transit_time: formatTimeOffset(transitTime, utcOffset),
-      needs_hdr: hdr,
-      filter_sequence: filterSeq
+      transitTime: formatTimeOffset(transitTime, utcOffset),
+      transitAltitude: score ? score.maxAltitude : null,
+      moonSeparation: score ? score.moonSeparation : null,
+      hdr,
+      filterSequence: filterBlocks,
+      totalIntegrationMinutes
     }
 
     await sql`UPDATE plan_targets SET snapshot = ${JSON.stringify(snapshot)} WHERE id = ${id}`

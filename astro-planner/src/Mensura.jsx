@@ -66,6 +66,7 @@ export default function Mensura() {
   const [planName, setPlanName] = useState('')
   const [imagingTrains, setImagingTrains] = useState([])
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null)
+  const [confirmDeletePlanId, setConfirmDeletePlanId] = useState(null)
 
   // Catalog browser state
   const [catalogResults, setCatalogResults] = useState([])
@@ -180,6 +181,20 @@ export default function Mensura() {
       await loadPlans()
       showToast('Plan deleted')
     } catch (err) { console.error('Delete error:', err) }
+  }
+
+  const handleSidebarDelete = async (planId) => {
+    try {
+      await post('/api/mensura/plans/delete', { id: planId })
+      if (selectedPlanId === planId) {
+        setPlanDetail(null)
+        setPlanTargets([])
+        setSelectedPlanId(null)
+      }
+      setConfirmDeletePlanId(null)
+      await loadPlans()
+      showToast('Plan deleted')
+    } catch (err) { console.error('Sidebar delete error:', err) }
   }
 
   // Add target from catalog
@@ -339,6 +354,17 @@ export default function Mensura() {
                       </span>
                     )}
                     {plan.status === 'complete' && <span className="ms-complete-pill">✓ Complete</span>}
+                    {confirmDeletePlanId === plan.id ? (
+                      <>
+                        <button className="ms-sidebar-del-btn ms-del-confirm"
+                          onClick={(e) => { e.stopPropagation(); handleSidebarDelete(plan.id) }}>Delete?</button>
+                        <button className="ms-sidebar-del-btn"
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeletePlanId(null) }}>Cancel</button>
+                      </>
+                    ) : (
+                      <button className="ms-sidebar-del-btn"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeletePlanId(plan.id) }}>×</button>
+                    )}
                   </div>
                 </div>
               ))
