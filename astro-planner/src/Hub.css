@@ -56,6 +56,12 @@
   --card-accent-border: rgba(124, 58, 237, 0.25);
 }
 
+.hub-card--teal {
+  --card-accent: var(--accent-teal);
+  --card-accent-glow: rgba(13, 148, 136, 0.12);
+  --card-accent-border: rgba(13, 148, 136, 0.25);
+}
+
 /* ── Card base ── */
 
 .hub-card {

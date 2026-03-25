@@ -20,4 +20,12 @@ export const tools = [
     status: 'live',
     accentColor: 'violet',
   },
+  {
+    name: 'Vigilia',
+    description: 'Track your preparedness inventory across locations, with readiness metrics and restock alerts.',
+    route: '/vigilia',
+    status: 'live',
+    accentColor: 'teal',
+    badge: false,
+  },
 ]

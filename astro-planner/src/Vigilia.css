@@ -1,0 +1,257 @@
+/* ── Vigilia Layout ── */
+.vigilia { display: flex; flex-direction: column; min-height: 100vh; background: var(--bg-base); }
+
+.vig-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; border-bottom: 1px solid var(--border-default);
+  background: var(--bg-card);
+}
+.vig-nav-left { display: flex; align-items: center; gap: 12px; }
+.vig-nav-center { display: flex; gap: 4px; }
+.vig-nav-right { display: flex; align-items: center; }
+.vig-hub-link {
+  color: var(--text-muted); font-size: 11px; text-decoration: none;
+}
+.vig-hub-link:hover { color: var(--text-secondary); }
+.vig-logo { display: flex; align-items: center; gap: 6px; text-decoration: none; }
+.vig-wordmark { color: var(--text-primary); font-size: 16px; font-weight: 600; }
+.vig-wordmark span { color: var(--accent-teal); }
+.vig-pill {
+  padding: 6px 16px; border-radius: 20px; border: 1px solid var(--border-default);
+  background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer;
+}
+.vig-pill.active {
+  background: var(--accent-teal); color: #fff; border-color: var(--accent-teal);
+}
+.vig-content { flex: 1; overflow-y: auto; position: relative; }
+
+/* ── Dashboard ── */
+.vig-dash { padding: 20px 24px; }
+.vig-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.vig-metric-card {
+  background: var(--bg-card); border: 1px solid var(--border-default);
+  border-radius: 10px; padding: 16px; text-align: center;
+}
+.vig-metric-value { font-size: 28px; font-weight: 600; color: var(--text-primary); }
+.vig-metric-value.vig-green { color: #10b95a; }
+.vig-metric-value.vig-ember { color: #e8630a; }
+.vig-metric-value.vig-red { color: #cc2936; }
+.vig-metric-label { color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+.vig-locations-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px; margin-bottom: 20px;
+}
+.vig-loc-card {
+  background: var(--bg-card); border: 1px solid var(--border-default);
+  border-radius: 10px; padding: 14px; cursor: pointer;
+}
+.vig-loc-card:hover { background: var(--bg-card-hover); }
+.vig-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vig-panel {
+  background: var(--bg-card); border: 1px solid var(--border-default);
+  border-radius: 10px; padding: 16px;
+}
+.vig-panel-title {
+  color: var(--text-primary); font-size: 13px; font-weight: 600;
+  margin: 0 0 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-default);
+}
+.vig-alert-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0; font-size: 12px; color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-default);
+}
+.vig-alert-item:last-child { border-bottom: none; }
+.vig-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  background: rgba(240,208,176,0.06); color: var(--text-muted);
+}
+
+/* ── Arms Tab ── */
+.vig-arms { padding: 20px 24px; }
+.vig-sub-tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border-default);
+  margin-bottom: 16px;
+}
+.vig-sub-tab {
+  padding: 8px 16px; background: none; border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted); font-size: 13px; cursor: pointer;
+}
+.vig-sub-tab:hover { color: var(--text-secondary); }
+.vig-sub-tab.active { color: var(--accent-teal); border-bottom-color: var(--accent-teal); }
+.vig-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.vig-add-btn {
+  padding: 6px 16px; background: var(--accent-teal); color: #fff;
+  border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.vig-add-btn:hover { opacity: 0.9; }
+.vig-import-btn {
+  padding: 6px 16px; background: none; border: 1px solid var(--border-default);
+  color: var(--text-muted); border-radius: 6px; font-size: 13px; cursor: pointer;
+}
+.vig-import-btn:hover { border-color: var(--text-dim); }
+.vig-table { width: 100%; border-collapse: collapse; }
+.vig-table th {
+  color: var(--text-secondary); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; text-align: left; padding: 8px 10px;
+  border-bottom: 1px solid var(--border-default);
+}
+.vig-table td {
+  color: var(--text-primary); font-size: 13px; padding: 10px;
+  border-bottom: 1px solid var(--border-default);
+}
+.vig-table tr:hover { background: var(--bg-card-hover); }
+.vig-actions { display: flex; gap: 6px; }
+.vig-edit-btn {
+  background: none; border: 1px solid var(--border-default);
+  color: var(--text-muted); border-radius: 4px; padding: 3px 8px;
+  font-size: 11px; cursor: pointer;
+}
+.vig-edit-btn:hover { border-color: var(--text-dim); color: var(--text-secondary); }
+.vig-del-btn {
+  background: none; border: 1px solid var(--border-default);
+  color: var(--text-muted); border-radius: 4px; padding: 3px 8px;
+  font-size: 11px; cursor: pointer;
+}
+.vig-del-btn:hover { color: var(--accent-crimson); border-color: var(--accent-crimson); }
+.vig-del-confirm { color: var(--accent-crimson); border-color: var(--accent-crimson); }
+
+/* ── Vehicles Tab ── */
+.vig-vehicles { padding: 20px 24px; }
+.vig-vehicle-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.vig-vehicle-card {
+  background: var(--bg-card); border: 1px solid var(--border-default);
+  border-radius: 10px; padding: 16px; cursor: pointer;
+}
+.vig-vehicle-card:hover { background: var(--bg-card-hover); }
+.vig-vehicle-name { color: var(--text-primary); font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.vig-vehicle-meta { color: var(--text-muted); font-size: 12px; margin-bottom: 8px; }
+.vig-pill-tag {
+  display: inline-block; font-size: 10px; padding: 2px 8px;
+  border-radius: 10px; border: 1px solid var(--accent-teal);
+  color: var(--accent-teal);
+}
+.vig-pill-tag.muted {
+  border-color: var(--border-default); color: var(--text-muted);
+}
+
+/* ── General (Inventory) Tab ── */
+.vig-general { padding: 20px 24px; }
+.vig-filters {
+  display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.vig-search {
+  background: var(--bg-card); border: 1px solid var(--border-default);
+  border-radius: 6px; color: var(--text-primary); font-size: 13px;
+  padding: 8px 12px; min-width: 200px;
+}
+.vig-search:focus { border-color: var(--accent-teal); outline: none; }
+.vig-select {
+  background: var(--bg-card); border: 1px solid var(--border-default);
+  border-radius: 6px; color: var(--text-primary); font-size: 13px;
+  padding: 8px 12px;
+}
+.vig-select:focus { border-color: var(--accent-teal); outline: none; }
+.vig-inline-edit {
+  cursor: pointer; padding: 2px 6px; border-radius: 4px;
+  color: var(--text-secondary); font-size: 13px;
+}
+.vig-inline-edit:hover { background: var(--bg-card-hover); }
+.vig-inline-edit input {
+  background: var(--bg-base); border: 1px solid var(--accent-teal);
+  color: var(--text-primary); border-radius: 4px; padding: 2px 6px;
+  font-size: 13px; width: 60px; outline: none;
+}
+
+/* ── Locations Tab ── */
+.vig-locations { padding: 20px 24px; }
+.vig-loc-list { display: flex; flex-direction: column; gap: 4px; }
+.vig-loc-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--bg-card);
+  border: 1px solid var(--border-default); border-radius: 8px;
+}
+.vig-loc-item:hover { background: var(--bg-card-hover); }
+.vig-loc-name { color: var(--text-primary); font-size: 13px; font-weight: 600; }
+.vig-loc-count {
+  font-size: 11px; padding: 2px 10px; border-radius: 10px;
+  background: rgba(240,208,176,0.06); color: var(--text-muted);
+}
+
+/* ── Overlay / Modal ── */
+.vig-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 100; display: flex; align-items: center; justify-content: center;
+}
+.vig-modal {
+  background: var(--bg-card); border-radius: 12px;
+  border-top: 2px solid var(--accent-teal);
+  width: 90%; max-width: 500px; max-height: 80vh;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.vig-modal-title {
+  color: var(--text-primary); font-size: 14px; font-weight: 600;
+  padding: 16px 20px; margin: 0;
+  border-bottom: 1px solid var(--border-default);
+}
+.vig-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+.vig-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.vig-field label { color: var(--text-secondary); font-size: 11px; font-weight: 600; }
+.vig-field input,
+.vig-field select,
+.vig-field textarea {
+  background: #0d1117; border: 1px solid var(--border-default);
+  border-radius: 6px; color: var(--text-primary); padding: 8px 12px;
+  font-size: 13px;
+}
+.vig-field input:focus,
+.vig-field select:focus,
+.vig-field textarea:focus { border-color: var(--accent-teal); outline: none; }
+.vig-modal-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 12px 20px; border-top: 1px solid var(--border-default);
+}
+.vig-save-btn {
+  padding: 8px 20px; background: var(--accent-teal); color: #fff;
+  border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.vig-save-btn:hover { opacity: 0.9; }
+.vig-cancel-btn {
+  padding: 8px 20px; background: none; border: 1px solid var(--border-default);
+  color: var(--text-muted); border-radius: 6px; font-size: 13px; cursor: pointer;
+}
+.vig-cancel-btn:hover { border-color: var(--text-dim); }
+
+/* ── Toast ── */
+.vig-toast {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--accent-teal); color: #fff; padding: 8px 20px;
+  border-radius: 8px; font-size: 13px; font-weight: 600;
+  z-index: 300; animation: toastFade 3s ease-out forwards;
+}
+
+/* ── Loading / Empty / Error ── */
+.vig-loading {
+  display: flex; align-items: center; justify-content: center;
+  padding: 48px; color: var(--text-muted); font-size: 13px;
+}
+.vig-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 48px;
+  color: var(--text-muted); text-align: center; font-size: 13px;
+}
+.vig-error {
+  color: var(--accent-crimson); font-size: 13px; padding: 12px 24px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .vig-metrics { grid-template-columns: repeat(2, 1fr); }
+  .vig-panels { grid-template-columns: 1fr; }
+  .vig-vehicle-grid { grid-template-columns: 1fr; }
+  .vig-filters { flex-direction: column; }
+}

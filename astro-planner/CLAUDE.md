@@ -7,7 +7,7 @@ Stack: Vite + React, React Router, Tailwind, Clerk auth, Neon (PostgreSQL), Verc
 - `/obscura` — Sky forecast + target recommendations + session planning
 - `/apertura` — Gear inventory + imaging train builder + NINA export
 - `/mensura` — Session planner
-- `/vigilia` — Preparedness tracker (planned)
+- `/vigilia` — Preparedness inventory tracker
 - `/itinera` — Trip planner (planned)
 **Repo:** github.com/marvymarv79/obscura
 **Live:** marvymarv.xyz / obscura-pi.vercel.app
@@ -28,7 +28,7 @@ This project is built by passing prompts to Claude Code. Claude Code implements 
 - React + Vite, deployed as SPA on Vercel
 - All routes are client-side via React Router
 - `src/main.jsx` is the entry point
-- Tool components: `App.jsx` (Obscura), `Apertura.jsx`, `Mensura.jsx`, `Hub.jsx`
+- Tool components: `App.jsx` (Obscura), `Apertura.jsx`, `Mensura.jsx`, `Vigilia.jsx`, `Hub.jsx`
 - Shared components in `src/components/`
 - Auth via `@clerk/clerk-react`
 ### Backend
@@ -42,12 +42,20 @@ Single Neon PostgreSQL database. Two table namespaces — do not mix them:
 |---|---|---|
 | (no prefix) | Obscura + Mensura | `targets`, `watchlist`, `plans`, `plan_targets`, `journal_entries`, `locations` |
 | `apt_*` | Apertura | `apt_cameras`, `apt_optics`, `apt_filters`, etc. |
+| `vig_*` | Vigilia | `vig_locations`, `vig_firearms`, `vig_suppressors`, `vig_ammo`, `vig_vehicles`, `vig_inventory` |
 Key table history — do not use old names:
 - `imaging_plans` was renamed to `plans` in Sprint 6 — always use `plans`
 - `imaging_plan_targets` was renamed to `plan_targets` in Sprint 6 — always use `plan_targets`
 Migration/setup endpoints must be:
 - Protected by `X-Setup-Key` header matched against `DB_SETUP_KEY` env var
 - Idempotent: use `CREATE TABLE IF NOT EXISTS` and `INSERT ... ON CONFLICT DO NOTHING`
+### Cron Jobs
+Configured in `vercel.json`. Cron-protected endpoints use `Authorization: Bearer ${CRON_SECRET}`.
+| Path | Schedule | Purpose |
+|---|---|---|
+| `/api/cron/watchlist-alert` | Daily 3pm UTC | Watchlist target alerts |
+| `/api/vigilia/digest` | Monday 9am UTC | Weekly below-threshold digest email |
+| `/api/vigilia/stale-check` | Daily 10am UTC | Reminder if inventory not updated in 30+ days |
 ---
 ## Recurring Bugs — Check Every Task
 These have caused silent failures repeatedly. Verify all of them before closing any task.

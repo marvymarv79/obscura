@@ -7,6 +7,7 @@ import Hub from './Hub.jsx'
 import App from './App.jsx'
 import Apertura from './Apertura.jsx'
 import Mensura from './Mensura.jsx'
+import Vigilia from './Vigilia.jsx'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -23,6 +24,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/obscura" element={<App />} />
           <Route path="/apertura" element={<Apertura />} />
           <Route path="/mensura" element={<Mensura />} />
+          <Route path="/vigilia" element={<Vigilia />} />
         </Routes>
       </ClerkProvider>
     </BrowserRouter>
