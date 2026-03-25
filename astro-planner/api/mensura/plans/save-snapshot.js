@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless'
 import { withAuth } from '../../_utils/auth.js'
-import { scoreTarget, getFilterSequence, getImagingWindow, getTransitTime, needsHDR } from '../../../src/targetEngine.js'
+import { scoreTarget, getFilterSequence, getImagingWindow, getTransitTime, needsHDR, getAltAz } from '../../../src/targetEngine.js'
 
 function formatTimeOffset(date, offsetMinutes) {
   if (!date) return null
@@ -8,7 +8,24 @@ function formatTimeOffset(date, offsetMinutes) {
   if (isNaN(d.getTime())) return null
   const localMs = d.getTime() + (offsetMinutes * 60 * 1000)
   const local = new Date(localMs)
-  return `${String(local.getUTCHours()).padStart(2, '0')}:${String(local.getUTCMinutes()).padStart(2, '0')}`
+  return `${String(local.getUTCHours()).padStart(2,'0')}:${String(local.getUTCMinutes()).padStart(2,'0')}`
+}
+
+function computeAltitudePoints(raDeg, decDeg, lat, lng, imagingWindow, utcOffset) {
+  if (!imagingWindow?.start || !imagingWindow?.end) return []
+  const points = []
+  const startMs = imagingWindow.start.getTime()
+  const endMs = imagingWindow.end.getTime()
+  const step = 15 * 60 * 1000 // 15-minute intervals
+  for (let ms = startMs; ms <= endMs; ms += step) {
+    const date = new Date(ms)
+    const { altitude } = getAltAz(raDeg, decDeg, lat, lng, date)
+    points.push({
+      time: formatTimeOffset(date, utcOffset),
+      altitude: Math.round(altitude * 10) / 10
+    })
+  }
+  return points
 }
 
 async function handler(req, res, userId) {
@@ -59,6 +76,7 @@ async function handler(req, res, userId) {
       }
 
       const target = {
+        id: pt.target_id,
         ngc_ic_id: pt.ngc_ic_id,
         common_name: pt.common_name,
         messier_number: pt.messier_number,
@@ -75,36 +93,50 @@ async function handler(req, res, userId) {
       const dec = parseFloat(pt.dec_deg)
 
       const imagingWindow = getImagingWindow(ra, dec, lat, lng, planDate, 25)
-      const transitTime = getTransitTime(ra, lat, lng, planDate)
-      const score = scoreTarget(target, location, planDate, null, [])
+      const transit = getTransitTime(ra, lat, lng, planDate)
+      const scoreResult = scoreTarget(target, location, planDate, null, [])
       const hdr = needsHDR(target)
-      const filterSeq = getFilterSequence(target, imagingWindow, transitTime, 'mono', utcOffset)
-
-      const filterBlocks = (filterSeq || []).map(b => ({
-        filter: b.filter,
-        start: b.start,
-        end: b.end,
-        estimatedSubs: b.estimatedSubs,
-        subLength: b.subLength,
-        totalMinutes: b.estimatedSubs ? Math.round(b.estimatedSubs * b.subLength / 60) : 0
-      }))
-      const totalIntegrationMinutes = filterBlocks.reduce((s, b) => s + (b.totalMinutes || 0), 0)
+      const filterSeq = getFilterSequence(target, imagingWindow, transit, 'mono', utcOffset)
 
       const snapshot = {
+        targetId: pt.target_id,
         targetName: pt.common_name || pt.ngc_ic_id,
-        score: score ? score.score : null,
-        scoreComponents: score ? score.components : null,
+        commonName: pt.common_name,
+        targetType: pt.object_type,
+        ra: parseFloat(pt.ra_deg),
+        dec: parseFloat(pt.dec_deg),
+        score: scoreResult?.score || 0,
+        scoreBreakdown: {
+          altitude: Math.round((scoreResult?.components?.altitude || 0) * 100),
+          moon: Math.round((scoreResult?.components?.moon || 0) * 100),
+          window: Math.round((scoreResult?.components?.window || 0) * 100),
+          fovMatch: Math.round((scoreResult?.components?.fov || 0) * 100)
+        },
+        windowStart: formatTimeOffset(imagingWindow?.start, utcOffset),
+        windowEnd: formatTimeOffset(imagingWindow?.end, utcOffset),
+        transitTime: formatTimeOffset(transit, utcOffset),
         imagingWindow: imagingWindow ? {
           start: formatTimeOffset(imagingWindow.start, utcOffset),
           end: formatTimeOffset(imagingWindow.end, utcOffset),
-          durationMinutes: imagingWindow.duration_minutes
+          durationMinutes: imagingWindow.duration_minutes || 0
         } : null,
-        transitTime: formatTimeOffset(transitTime, utcOffset),
-        transitAltitude: score ? score.maxAltitude : null,
-        moonSeparation: score ? score.moonSeparation : null,
-        hdr,
-        filterSequence: filterBlocks,
-        totalIntegrationMinutes
+        filterSequence: (filterSeq || []).map(b => ({
+          filter: b.filter,
+          start: b.start,
+          end: b.end,
+          subs: b.estimatedSubs || 0,
+          subLength: b.subLength || 300,
+          totalMinutes: b.estimatedSubs ? Math.round(b.estimatedSubs * b.subLength / 60) : 0
+        })),
+        exposureSummary: {
+          totalMinutes: (filterSeq || []).reduce((s, b) => s + (b.estimatedSubs ? Math.round(b.estimatedSubs * b.subLength / 60) : 0), 0),
+          perFilter: (filterSeq || []).map(b => ({
+            filter: b.filter,
+            minutes: b.estimatedSubs ? Math.round(b.estimatedSubs * b.subLength / 60) : 0
+          }))
+        },
+        needsHDR: hdr,
+        altitudePoints: computeAltitudePoints(ra, dec, lat, lng, imagingWindow, utcOffset)
       }
 
       // Save snapshot to plan_target
@@ -113,7 +145,7 @@ async function handler(req, res, userId) {
         WHERE id = ${pt.id}
       `
 
-      targetSnapshots.push({ plan_target_id: pt.id, ...snapshot })
+      targetSnapshots.push({ planTargetId: pt.id, ...snapshot })
     }
 
     // Save summary snapshot to plan
@@ -121,10 +153,10 @@ async function handler(req, res, userId) {
       computedAt: new Date().toISOString(),
       targetCount: planTargets.length,
       targets: targetSnapshots.map(t => ({
-        name: t.targetName,
+        targetName: t.targetName,
         score: t.score,
-        window: t.imagingWindow,
-        transit: t.transitTime
+        imagingWindow: t.imagingWindow,
+        transitTime: t.transitTime
       }))
     }
 
@@ -133,7 +165,7 @@ async function handler(req, res, userId) {
       WHERE id = ${id}
     `
 
-    return res.status(200).json({ plan_id: id, snapshot: planSnapshot, targets: targetSnapshots })
+    return res.status(200).json({ planId: id, snapshot: planSnapshot, targets: targetSnapshots })
   } catch (error) {
     console.error('[api/save-snapshot] Error:', error)
     return res.status(500).json({ error: 'Database error', details: error.message })

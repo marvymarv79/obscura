@@ -298,7 +298,7 @@ export default function Mensura() {
   }
 
   const totalTime = planTargets.reduce((sum, pt) => {
-    return sum + (pt.snapshot?.imagingWindow?.durationMinutes || pt.snapshot?.totalIntegrationMinutes || 0)
+    return sum + (pt.snapshot?.exposureSummary?.totalMinutes || pt.snapshot?.imagingWindow?.durationMinutes || 0)
   }, 0)
 
   const isDraft = !planDetail?.status || planDetail.status === 'draft'
@@ -470,16 +470,20 @@ export default function Mensura() {
 
                       {isExpanded && (
                         <div className="mw-target-expanded">
-                          {/* Window row */}
+                          {/* Imaging window */}
                           {snap.imagingWindow && (
                             <div className="mw-window-row">
                               <span>Window:</span>
                               {isDraft ? (
                                 <>
-                                  <input type="time" className="mw-time-input" value={pt.window_start || snap.imagingWindow.start || ''}
+                                  <input type="time" className="mw-time-input"
+                                    value={pt.window_start || snap.windowStart || snap.imagingWindow.start || ''}
+                                    onClick={(e) => e.stopPropagation()}
                                     onChange={() => {}} />
                                   <span>—</span>
-                                  <input type="time" className="mw-time-input" value={pt.window_end || snap.imagingWindow.end || ''}
+                                  <input type="time" className="mw-time-input"
+                                    value={pt.window_end || snap.windowEnd || snap.imagingWindow.end || ''}
+                                    onClick={(e) => e.stopPropagation()}
                                     onChange={() => {}} />
                                 </>
                               ) : (
@@ -489,22 +493,21 @@ export default function Mensura() {
                             </div>
                           )}
 
-                          {/* Transit/Moon */}
+                          {/* Transit */}
                           {snap.transitTime && (
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                              Transit · {snap.transitTime}{snap.transitAltitude ? ` at ${Math.round(snap.transitAltitude)}°` : ''}
-                              {snap.moonSeparation ? ` · Moon ${Math.round(snap.moonSeparation)}° away` : ''}
+                              Transit · {snap.transitTime}
                             </div>
                           )}
 
-                          {/* Score breakdown */}
-                          {snap.scoreComponents && (
+                          {/* Score breakdown — 2x2 grid */}
+                          {snap.scoreBreakdown && (
                             <div className="mw-scores-grid">
-                              {['altitude', 'moon', 'window', 'fov'].map(key => {
-                                const val = Math.round((snap.scoreComponents[key] || 0) * 100)
+                              {[['altitude','Altitude'],['moon','Moon'],['window','Window'],['fovMatch','FOV match']].map(([key, label]) => {
+                                const val = snap.scoreBreakdown[key] || 0
                                 return (
                                   <div key={key} className="mw-score-tile">
-                                    <span className="mw-score-label">{key}</span>
+                                    <span className="mw-score-label">{label}</span>
                                     <div className="mw-score-bar">
                                       <div className="mw-score-fill" style={{ width: `${val}%`, background: getScoreColor(val) }} />
                                     </div>
@@ -515,7 +518,41 @@ export default function Mensura() {
                             </div>
                           )}
 
-                          {/* Filter sequence */}
+                          {/* Altitude chart SVG */}
+                          {snap.altitudePoints && snap.altitudePoints.length > 1 && (
+                            <div className="mw-alt-chart">
+                              <svg viewBox="0 0 300 80" className="mw-alt-svg">
+                                {/* Min altitude floor */}
+                                <line x1="0" y1={80 - (30/90)*80} x2="300" y2={80 - (30/90)*80}
+                                  stroke="var(--text-dim)" strokeDasharray="3,3" strokeWidth="0.5" />
+                                {/* Altitude curve */}
+                                <polyline fill="none" stroke="#7c3aed" strokeWidth="1.5"
+                                  points={snap.altitudePoints.map((p, i) => {
+                                    const x = (i / (snap.altitudePoints.length - 1)) * 300
+                                    const y = 80 - (Math.max(0, p.altitude) / 90) * 80
+                                    return `${x},${y}`
+                                  }).join(' ')} />
+                                {/* Shaded area under curve */}
+                                <polygon fill="rgba(124,58,237,0.1)"
+                                  points={[
+                                    '0,80',
+                                    ...snap.altitudePoints.map((p, i) => {
+                                      const x = (i / (snap.altitudePoints.length - 1)) * 300
+                                      const y = 80 - (Math.max(0, p.altitude) / 90) * 80
+                                      return `${x},${y}`
+                                    }),
+                                    '300,80'
+                                  ].join(' ')} />
+                                {/* Time labels */}
+                                {snap.altitudePoints.filter((_, i) => i % 4 === 0).map((p, i, arr) => (
+                                  <text key={i} x={(i * 4 / (snap.altitudePoints.length - 1)) * 300}
+                                    y="78" fill="var(--text-dim)" fontSize="6" textAnchor="middle">{p.time}</text>
+                                ))}
+                              </svg>
+                            </div>
+                          )}
+
+                          {/* Filter sequence table */}
                           {snap.filterSequence && snap.filterSequence.length > 0 && (
                             <div className="mw-filter-section">
                               <div className="mw-filter-header">
@@ -537,7 +574,7 @@ export default function Mensura() {
                                       {f.filter}
                                     </span>
                                     <span>{f.start}</span><span>{f.end}</span>
-                                    <span>{f.estimatedSubs}</span><span>{f.subLength}s</span>
+                                    <span>{f.subs}</span><span>{f.subLength}s</span>
                                     <span>{f.totalMinutes}m</span>
                                   </div>
                                 ))}
@@ -545,24 +582,24 @@ export default function Mensura() {
                             </div>
                           )}
 
-                          {/* HDR */}
-                          {snap.hdr && (
+                          {/* HDR warning */}
+                          {snap.needsHDR && (
                             <div className="mw-hdr-warning">⚠ HDR recommended — add 30s subs during L window</div>
                           )}
 
-                          {/* Exposure */}
-                          {snap.totalIntegrationMinutes > 0 && (
+                          {/* Exposure summary */}
+                          {snap.exposureSummary && snap.exposureSummary.totalMinutes > 0 && (
                             <div className="mw-exposure">
-                              Total integration: {formatDuration(snap.totalIntegrationMinutes)}
-                              {snap.filterSequence && snap.filterSequence.length > 1 && (
+                              Total integration: {formatDuration(snap.exposureSummary.totalMinutes)}
+                              {snap.exposureSummary.perFilter && snap.exposureSummary.perFilter.length > 1 && (
                                 <span className="mw-per-filter">
-                                  {' · '}{snap.filterSequence.map(f => `${f.filter}: ${f.totalMinutes}m`).join(' · ')}
+                                  {' · '}{snap.exposureSummary.perFilter.map(f => `${f.filter}: ${f.minutes}m`).join(' · ')}
                                 </span>
                               )}
                             </div>
                           )}
 
-                          {/* Train selector */}
+                          {/* Imaging train selector (draft only) */}
                           {isDraft && (
                             <div className="mw-train-row">
                               <span>Train:</span>
