@@ -339,6 +339,7 @@ export default function Mensura() {
                 <div key={plan.id}
                   className={`ms-plan-card ${selectedPlanId === plan.id ? 'selected' : ''}`}
                   onClick={() => selectPlan(plan)}>
+                  {plan.name && <div className="ms-plan-name">{plan.name}</div>}
                   <div className="ms-plan-date">{formatDate(plan.plan_date)}</div>
                   <div className="ms-plan-location">{plan.location_name}</div>
                   {plan.target_names && plan.target_names.length > 0 && (

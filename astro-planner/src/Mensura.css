@@ -63,7 +63,8 @@
 }
 .ms-plan-card:hover { background: var(--bg-card-hover); }
 .ms-plan-card.selected { border-left-color: #7c3aed; background: var(--bg-card-hover); }
-.ms-plan-date { color: var(--text-primary); font-size: 13px; font-weight: 600; }
+.ms-plan-name { color: var(--text-primary); font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.ms-plan-date { color: var(--text-muted); font-size: 11px; }
 .ms-plan-location { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
 .ms-plan-targets { color: var(--text-muted); font-size: 11px; margin-top: 4px; }
 .ms-plan-footer { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
