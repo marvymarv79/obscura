@@ -124,8 +124,8 @@ Tokens are in `src/tokens.css`. Always use CSS variables — never hardcode colo
 - Obscura → ember `#e8630a`
 - Apertura → crimson `#cc2936`
 - Mensura → violet `#7c3aed`
-- Vigilia → TBD
-- Itinera → TBD
+- Vigilia → teal `#0d9488`
+- Itinera → sky `#0ea5e9`
 **Typography:** Warm cream (`#f0d0b0`) for primary text — not stark white. 24-hour time throughout. Maximize screen real estate — avoid excessive padding and whitespace.
 ---
 ## Auth
