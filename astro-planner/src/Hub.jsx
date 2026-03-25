@@ -27,9 +27,11 @@ function Hub() {
             >
               <div className="hub-card-header">
                 <h2 className="hub-card-name">{tool.name}</h2>
-                <span className={`hub-card-badge ${isLive ? 'hub-card-badge--live' : 'hub-card-badge--soon'}`}>
-                  {isLive ? 'Live' : 'Coming Soon'}
-                </span>
+                {tool.badge !== false && (
+                  <span className={`hub-card-badge ${isLive ? 'hub-card-badge--live' : 'hub-card-badge--soon'}`}>
+                    {isLive ? 'Live' : 'Coming Soon'}
+                  </span>
+                )}
               </div>
               <p className="hub-card-desc">{tool.description}</p>
               {isLive && <span className="hub-card-arrow">&rarr;</span>}
