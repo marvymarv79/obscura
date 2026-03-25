@@ -390,36 +390,62 @@ function formatTime(date, utcOffsetMinutes = 0) {
 // ─── Exposure Time ───────────────────────────────────────
 
 /**
- * Returns recommended sub exposure in seconds.
- * Returns null if wind > 25 mph — callers must handle null.
+ * Sky-limited sub-exposure calculator.
+ * Returns recommended sub exposure in seconds, or null if wind > 25 mph.
+ * Callers must handle null.
+ *
+ * @param {string} filter - Filter name (L, R, G, B, Ha, OIII, SII, OSC)
+ * @param {object} imagingTrain - { read_noise_e, arcsec_per_pixel, ... }
+ * @param {number} targetMagnitude - Target surface brightness (unused in sky-limited calc, kept for compat)
+ * @param {object} conditions - { bortleIndex, moonIllumination, moonSeparationDeg, windSpeedMph }
  */
-export function getSubExposure(filter, imagingTrain, targetMagnitude, forecastSlice) {
-  // Wind check — abort if any forecast slot exceeds 25 mph
-  if (Array.isArray(forecastSlice)) {
-    const maxWind = Math.max(...forecastSlice.map(s => s.windSpeed ?? 0))
-    if (maxWind > 25) return null
+export function getSubExposure(filter, imagingTrain, targetMagnitude, conditions = {}) {
+  const { bortleIndex = 5, moonIllumination = 0, moonSeparationDeg = 180, windSpeedMph = 0 } = conditions || {}
+
+  // Step 8: Wind check — abort if wind > 25 mph
+  if (windSpeedMph > 25) return null
+
+  // Step 1: Bortle → sky surface brightness (mag/arcsec²)
+  const bortleSBLookup = { 1: 22.0, 2: 21.5, 3: 21.0, 4: 20.5, 5: 19.5, 6: 18.5, 7: 18.0, 8: 17.0, 9: 16.0 }
+  const bortle = Math.max(1, Math.min(9, Math.round(bortleIndex)))
+  const bortleSB = bortleSBLookup[bortle] ?? 19.5
+
+  // Step 2: Moon penalty
+  let effectiveSB = bortleSB
+  const illumFraction = moonIllumination / 100
+  if (illumFraction > 0.05 && moonSeparationDeg < 120) {
+    const penalty = illumFraction * (1 - moonSeparationDeg / 120) * 3.5
+    effectiveSB = effectiveSB - penalty
   }
 
-  const baseExposures = {
-    L: 300, R: 180, G: 180, B: 180,
-    Ha: 300, SII: 300, OIII: 300,
-    OSC: 300
-  }
+  // Step 3: Narrowband filter boost
+  const isNarrowband = ['Ha', 'OIII', 'SII'].includes(filter)
+  const filterBoost = { Ha: 3.0, OIII: 2.5, SII: 3.0 }
+  effectiveSB += (filterBoost[filter] || 0)
 
-  let exposure = baseExposures[filter] || 300
+  // Step 4: Sky photon rate (normalized to Bortle 5 broadband = 19.5 = skyRate 1.0)
+  const skyRate = Math.pow(10, (19.5 - effectiveSB) / 2.5)
 
-  const pixelScale = parseFloat(imagingTrain?.arcsec_per_pixel || 0)
-  if (pixelScale > 3.0) exposure *= 0.67
-  else if (pixelScale < 1.0 && pixelScale > 0) exposure *= 1.5
+  // Step 5: Pixel scale factor (normalize to 1.5"/px reference)
+  const pixelScale = parseFloat(imagingTrain?.arcsec_per_pixel) || 1.5
+  const scaleRatio = Math.pow(pixelScale / 1.5, 2)
 
-  const mag = parseFloat(targetMagnitude)
-  if (!isNaN(mag) && mag > 12) exposure *= 1.25
+  // Step 6: Read noise factor (normalize to 3.5 e⁻ reference)
+  const readNoise = parseFloat(imagingTrain?.read_noise_e) || 3.5
+  const rnFactor = Math.pow(readNoise / 3.5, 2)
 
-  // Round to nearest 30s
+  // Step 7: Base exposure (reference: 300s at Bortle 5, no moon, broadband, 3.5e⁻, 1.5"/px)
+  let exposure = 300 * rnFactor / (skyRate * scaleRatio)
+
+  // Step 8: Wind/seeing multiplier
+  if (windSpeedMph >= 15) exposure *= 0.5
+  else if (windSpeedMph >= 5) exposure *= 0.75
+  // < 5 mph → ×1.0
+
+  // Step 9: Round to nearest 30s
   exposure = Math.round(exposure / 30) * 30
 
-  // Clamp — narrowband allows longer subs (60–900s), broadband + OSC caps at 600s
-  const isNarrowband = ['Ha', 'OIII', 'SII'].includes(filter)
+  // Step 9: Clamp — narrowband 60–900s, broadband + OSC 60–600s
   const maxExposure = isNarrowband ? 900 : 600
   exposure = Math.max(60, Math.min(maxExposure, exposure))
 

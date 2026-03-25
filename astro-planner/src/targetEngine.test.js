@@ -220,22 +220,39 @@ console.log('\n=== Test 5: needsHDR ===')
   assert('Galaxy does not need HDR', needsHDR({ ngc_ic_id: 'NGC9999', object_type: 'Galaxy' }) === false)
 }
 
-// ─── Test 6: getSubExposure ───
+// ─── Test 6: getSubExposure (physics-based formula) ───
 console.log('\n=== Test 6: getSubExposure ===')
 {
-  const train = { arcsec_per_pixel: 2.0 }
-  assert('L base = 300s', getSubExposure('L', train, 10) === 300)
-  assert('R base = 180s', getSubExposure('R', train, 10) === 180)
-  assert('Ha base = 300s', getSubExposure('Ha', train, 10) === 300)
+  // Reference conditions: Bortle 5, no moon, 1.5"/px, 3.5e⁻ → 300s base
+  const refTrain = { arcsec_per_pixel: 1.5, read_noise_e: 3.5 }
+  const refL = getSubExposure('L', refTrain, 10)
+  assert(`reference L = 300s (got ${refL})`, refL === 300)
 
-  // Wide field adjustment
-  const wideTrain = { arcsec_per_pixel: 4.0 }
+  // Narrowband gets filter boost → much longer subs
+  const refHa = getSubExposure('Ha', refTrain, 10)
+  assert(`reference Ha > 300s (got ${refHa})`, refHa > 300)
+
+  // Wide pixel scale → shorter subs (more sky photons per pixel)
+  const wideTrain = { arcsec_per_pixel: 4.0, read_noise_e: 3.5 }
   const wideL = getSubExposure('L', wideTrain, 10)
   assert(`wide field L < 300 (got ${wideL})`, wideL < 300)
 
-  // Faint target adjustment
-  const faintL = getSubExposure('L', train, 13)
-  assert(`faint target L > 300 (got ${faintL})`, faintL > 300)
+  // High read noise → longer subs
+  const noisyTrain = { arcsec_per_pixel: 1.5, read_noise_e: 8.0 }
+  const noisyL = getSubExposure('L', noisyTrain, 10)
+  assert(`noisy camera L > 300 (got ${noisyL})`, noisyL > 300)
+
+  // Wind > 25 mph → null
+  const windNull = getSubExposure('L', refTrain, 10, { windSpeedMph: 30 })
+  assert('wind > 25 returns null', windNull === null)
+
+  // Moon penalty → brighter sky → shorter subs
+  const moonL = getSubExposure('L', refTrain, 10, { moonIllumination: 80, moonSeparationDeg: 30 })
+  assert(`moon penalty L < 300 (got ${moonL})`, moonL < 300)
+
+  // Dark site → longer subs
+  const darkL = getSubExposure('L', refTrain, 10, { bortleIndex: 2 })
+  assert(`dark site L > 300 (got ${darkL})`, darkL > 300)
 }
 
 // ─── Test 7: getMoonSeparation ───
