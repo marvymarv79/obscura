@@ -127,7 +127,7 @@
 }
 
 .hub-card-badge--soon {
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   color: var(--text-muted);
   border: 1px solid var(--border-default);
 }

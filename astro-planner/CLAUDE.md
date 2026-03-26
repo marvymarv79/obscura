@@ -124,17 +124,19 @@ GET /api/mensura/plans/:id
 ## Design System
 Tokens are in `src/tokens.css`. Always use CSS variables — never hardcode colors or spacing that exists as a token.
 **Colors:**
-- Background: `#13171f` (base), `#191d26` (cards), `#1d2230` (card hover)
-- Text: `#f0d0b0` (primary/warm cream), `#a09080` (secondary), `#5a4a40` (muted)
-- Borders: `rgba(240,208,176,0.07)` (default), `rgba(232,99,10,0.35)` (accent)
+- Background: `#1e2130` (--bg-primary), `#252a38` (--bg-surface), `#2d3347` (--bg-elevated)
+- Text: `#e8e8e8` (--text-primary), `#9ca3af` (--text-secondary), `#6b7280` (--text-muted), `#4b5563` (--text-dim)
+- Text accent: `#f0d0b0` (--text-accent) — warm cream for decorative/accent use only, not body text
+- Borders: `rgba(232,232,232,0.07)` (--border-default), `rgba(232,99,10,0.35)` (--border-accent)
 - Green: `#10b95a` | Ember: `#e8630a` | Crimson: `#cc2936` | Violet: `#7c3aed`
+- Legacy aliases: `--bg-base` → `--bg-primary`, `--bg-card` → `--bg-surface`, `--bg-card-hover` → `--bg-elevated`
 **Tool accent colors:**
 - Obscura → ember `#e8630a`
 - Apertura → crimson `#cc2936`
 - Mensura → violet `#7c3aed`
 - Vigilia → teal `#0d9488`
 - Itinera → sky `#0ea5e9`
-**Typography:** Warm cream (`#f0d0b0`) for primary text — not stark white. 24-hour time throughout. Maximize screen real estate — avoid excessive padding and whitespace.
+**Typography:** Neutral light gray (`#e8e8e8`) for primary text. 24-hour time throughout. Maximize screen real estate — avoid excessive padding and whitespace.
 ---
 ## Auth
 Clerk handles all auth. Every API route that reads or writes user data must use the `withAuth` wrapper from `api/_utils/auth.js`. Do not create unprotected routes that expose user data.
