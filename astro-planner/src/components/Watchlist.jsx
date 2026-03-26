@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getImagingWindow, getFilterSequence, getTransitTime } from '../targetEngine.js'
+import { IMAGING_SETUPS, USER_GEAR } from '../gearconfig.js'
 import './Watchlist.css'
 
 const TYPE_COLORS = {
@@ -96,7 +97,7 @@ function VisibilityCalendar({ raDeg, decDeg, lat, lng, minAlt }) {
  * stopPropagation() to any button inside a
  * clickable container.
  */
-export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecastScore, onAddToPlan, onPlanCreated }) {
+export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecastScore, onAddToPlan, onPlanCreated, activeSetups = [] }) {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
@@ -276,6 +277,19 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
     }
   }
 
+  // Derive camera type from the active gear strip setup, not from target type
+  const getActiveCameraType = () => {
+    if (activeSetups.length > 0) {
+      const setup = IMAGING_SETUPS.find(s => s.id === activeSetups[0])
+      if (setup) {
+        const camera = USER_GEAR.cameras.find(c => c.id === setup.camera)
+        if (camera) return camera.color ? 'OSC' : 'MONO'
+      }
+    }
+    // Fallback: no active setup selected — default to OSC
+    return 'OSC'
+  }
+
   // Compute tonight's data for selected target
   const getSelectedNightData = () => {
     if (!selected || !coords) return null
@@ -284,6 +298,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
     const lat = coords.latitude
     const lng = coords.longitude
     const offset = utcOffsetMinutes || 0
+    const cameraType = getActiveCameraType()
 
     const nights = []
     for (let d = 0; d < 3; d++) {
@@ -291,7 +306,6 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
       date.setDate(date.getDate() + d)
       const w = getImagingWindow(ra, dec, lat, lng, date, 25)
       const transit = getTransitTime(ra, lat, lng, date)
-      const cameraType = selected.best_imaging_type === 'narrowband' ? 'Mono' : 'OSC'
       const filters = w ? getFilterSequence({ best_imaging_type: selected.best_imaging_type }, w, transit, cameraType, offset) : []
 
       nights.push({
@@ -315,6 +329,7 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
     const lng = coords.longitude
     const offset = utcOffsetMinutes || 0
     const plannedNights = selected.planned_nights || 1
+    const cameraType = getActiveCameraType()
 
     const plan = []
     let nightsFound = 0
@@ -325,7 +340,6 @@ export default function Watchlist({ get, post, coords, utcOffsetMinutes, forecas
       if (!w || w.duration_minutes < 60) continue
 
       const transit = getTransitTime(ra, lat, lng, date)
-      const cameraType = selected.best_imaging_type === 'narrowband' ? 'Mono' : 'OSC'
       const filters = getFilterSequence({ best_imaging_type: selected.best_imaging_type }, w, transit, cameraType, offset)
       const totalSubs = filters.reduce((s, b) => s + b.estimatedSubs, 0)
 

@@ -698,6 +698,7 @@ function App() {
                 forecastScore={forecastDays[0]?.score ?? null}
                 onAddToPlan={handleSavePlan}
                 onPlanCreated={loadPlans}
+                activeSetups={activeSetups}
               />
             </div>
           )}
@@ -1084,7 +1085,7 @@ function App() {
                                       <div className="plan-detail"><span className="plan-label">Hrs&gt;30°:</span><span className="plan-value">{item.hoursAbove30?.toFixed(1) || '--'}</span></div>
                                       <div className="plan-detail"><span className="plan-label">Moon:</span><span className="plan-value" style={{ color: getMoonSeparationColor(item.moonSeparation) }}>{Math.round(item.moonSeparation || 0)}°</span></div>
                                       <div className="plan-detail"><span className="plan-label">Vis:</span><span className="plan-value" style={{ color: getScoreColor(item.score) }}>{item.score}</span></div>
-                                      <div className="plan-detail"><span className="plan-label">Gear:</span><span className="plan-value" style={{ color: getScoreColor(item.assignedSetup?.combinedScore || item.gearScore) }}>{item.assignedSetup?.combinedScore || item.gearScore}</span></div>
+                                      <div className="plan-detail"><span className="plan-label">Gear:</span><span className="plan-value" style={{ color: getScoreColor(item.assignedSetup?.combinedScore ?? item.gearScore ?? 0) }}>{item.assignedSetup?.setup?.name || item.bestSetup?.setup?.name || (item.gearScore != null ? item.gearScore : '--')}</span></div>
                                     </div>
                                     {item.assignedSetup && <div className="plan-item-setup">{item.assignedSetup.fovFit.rating} &bull; {item.assignedSetup.fovFit.fillPercent.toFixed(0)}% FOV fill</div>}
                                   </div>
