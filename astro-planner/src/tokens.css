@@ -2,9 +2,14 @@
 
 :root {
   /* Backgrounds */
-  --bg-base: #13171f;
-  --bg-card: #191d26;
-  --bg-card-hover: #1d2230;
+  --bg-primary: #1e2130;
+  --bg-surface: #252a38;
+  --bg-elevated: #2d3347;
+
+  /* Legacy aliases — prefer named tokens above */
+  --bg-base: var(--bg-primary);
+  --bg-card: var(--bg-surface);
+  --bg-card-hover: var(--bg-elevated);
 
   /* Accents */
   --accent-ember: #e8630a;
@@ -18,13 +23,14 @@
   --accent-red: #cc2936;
 
   /* Text */
-  --text-primary: #f0d0b0;
-  --text-secondary: #a09080;
-  --text-muted: #5a4a40;
-  --text-dim: #3a2a20;
+  --text-primary: #e8e8e8;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-dim: #4b5563;
+  --text-accent: #f0d0b0;
 
   /* Borders */
-  --border-default: rgba(240, 208, 176, 0.07);
+  --border-default: rgba(232, 232, 232, 0.07);
   --border-accent: rgba(232, 99, 10, 0.35);
 
   /* Typography weights */

@@ -57,7 +57,7 @@ function VisibilityCalendar({ raDeg, decDeg, lat, lng, minAlt }) {
     if (dur >= 360) return '#10b95a'
     if (dur >= 180) return '#10b95a80'
     if (dur > 0) return '#10b95a30'
-    return '#1d2230'
+    return '#2d3347'
   }
 
   return (

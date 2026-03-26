@@ -134,7 +134,7 @@ body {
 
 .nav-pill:hover {
   color: var(--text-primary);
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
 }
 
 .nav-pill.active {
@@ -666,7 +666,7 @@ body {
 }
 
 .save-dialog-buttons button:last-child {
-  background: rgba(240, 208, 176, 0.06);
+  background: rgba(232, 232, 232, 0.06);
   color: var(--text-primary);
 }
 
@@ -846,17 +846,17 @@ body {
 }
 
 .table-container::-webkit-scrollbar-track {
-  background: rgba(240, 208, 176, 0.03);
+  background: rgba(232, 232, 232, 0.03);
   border-radius: 4px;
 }
 
 .table-container::-webkit-scrollbar-thumb {
-  background: rgba(240, 208, 176, 0.12);
+  background: rgba(232, 232, 232, 0.12);
   border-radius: 4px;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(240, 208, 176, 0.2);
+  background: rgba(232, 232, 232, 0.2);
 }
 
 table {
@@ -983,7 +983,7 @@ tbody tr:hover {
 
 .filter-chip {
   padding: 0.35rem 0.75rem;
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   border: 1px solid var(--border-default);
   border-radius: 20px;
   color: var(--text-secondary);
@@ -1075,7 +1075,7 @@ tbody tr:hover {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(240, 208, 176, 0.06);
+  background: rgba(232, 232, 232, 0.06);
   border: 1px solid var(--border-default);
   display: flex;
   align-items: center;
@@ -1148,7 +1148,7 @@ tbody tr:hover {
   gap: 0.5rem;
   margin-bottom: 0.75rem;
   padding: 0.5rem;
-  background: rgba(240, 208, 176, 0.03);
+  background: rgba(232, 232, 232, 0.03);
   border-radius: 6px;
 }
 
@@ -1286,7 +1286,7 @@ tbody tr:hover {
 
 .setup-toggle {
   padding: 0.5rem 1rem;
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   border: 1px solid var(--border-default);
   border-radius: 6px;
   color: var(--text-secondary);
@@ -1746,7 +1746,7 @@ tbody tr:hover {
 
 .cancel-button {
   padding: 0.75rem 1.5rem;
-  background: rgba(240, 208, 176, 0.06);
+  background: rgba(232, 232, 232, 0.06);
   border: 1px solid var(--border-default);
   border-radius: 6px;
   color: var(--text-primary);
@@ -1755,7 +1755,7 @@ tbody tr:hover {
 }
 
 .cancel-button:hover {
-  background: rgba(240, 208, 176, 0.1);
+  background: rgba(232, 232, 232, 0.1);
 }
 
 .log-filters {
@@ -1855,7 +1855,7 @@ tbody tr:hover {
   font-size: 0.85rem;
   color: var(--text-muted);
   padding: 0.5rem;
-  background: rgba(240, 208, 176, 0.03);
+  background: rgba(232, 232, 232, 0.03);
   border-radius: 4px;
   margin-bottom: 0.5rem;
   font-style: italic;
@@ -1869,7 +1869,7 @@ tbody tr:hover {
 
 .entry-actions button {
   padding: 0.35rem 0.75rem;
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   border: 1px solid var(--border-default);
   border-radius: 4px;
   color: var(--text-secondary);
@@ -1931,7 +1931,7 @@ tbody tr:hover {
 
 .gear-tab {
   padding: 0.5rem 1rem;
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   border: 1px solid var(--border-default);
   border-radius: 6px;
   color: var(--text-secondary);
@@ -2110,7 +2110,7 @@ tbody tr:hover {
 
 .gear-card-actions button {
   padding: 0.35rem 0.75rem;
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   border: 1px solid var(--border-default);
   border-radius: 4px;
   color: var(--text-secondary);
@@ -2160,7 +2160,7 @@ tbody tr:hover {
 .refresh-button {
   width: 36px;
   height: 36px;
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   border: 1px solid var(--border-default);
   border-radius: 6px;
   color: var(--text-secondary);
@@ -2300,7 +2300,7 @@ tbody tr:hover {
   color: var(--text-secondary);
   margin-bottom: 1rem;
   padding: 0.75rem;
-  background: rgba(240, 208, 176, 0.03);
+  background: rgba(232, 232, 232, 0.03);
   border-radius: 6px;
 }
 
@@ -2953,7 +2953,7 @@ tbody tr:hover {
 
 .tag-filter {
   padding: 0.4rem 0.75rem;
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   border: 1px solid var(--border-default);
   border-radius: 16px;
   color: var(--text-secondary);
@@ -3143,7 +3143,7 @@ tbody tr:hover {
 .close-button {
   width: 32px;
   height: 32px;
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   border: 1px solid var(--border-default);
   border-radius: 6px;
   color: var(--text-secondary);
@@ -3169,7 +3169,7 @@ tbody tr:hover {
 
 .tag-button {
   padding: 0.4rem 0.75rem;
-  background: rgba(240, 208, 176, 0.04);
+  background: rgba(232, 232, 232, 0.04);
   border: 1px solid var(--border-default);
   border-radius: 16px;
   color: var(--text-secondary);
