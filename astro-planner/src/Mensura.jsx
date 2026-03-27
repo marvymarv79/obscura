@@ -262,14 +262,18 @@ export default function Mensura() {
     return endMin - startMin
   }
 
-  // Round minutes to nearest 5-minute step
-  function roundTo5(timeStr) {
-    if (!timeStr) return timeStr
-    const [h, m] = timeStr.split(':').map(Number)
-    const rounded = Math.round(m / 5) * 5
-    const finalM = rounded % 60
-    const finalH = (h + Math.floor(rounded / 60)) % 24
-    return `${String(finalH).padStart(2, '0')}:${String(finalM).padStart(2, '0')}`
+  // Validate and normalize HH:MM input, round to nearest 5 minutes
+  function normalizeTime(raw) {
+    if (!raw) return null
+    const cleaned = raw.replace(/[^0-9:]/g, '')
+    const match = cleaned.match(/^(\d{1,2}):?(\d{2})$/)
+    if (!match) return null
+    let h = parseInt(match[1], 10)
+    let m = parseInt(match[2], 10)
+    if (h > 23 || m > 59) return null
+    m = Math.round(m / 5) * 5
+    if (m >= 60) { m = 0; h = (h + 1) % 24 }
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
 
   // Recompute target
@@ -557,23 +561,29 @@ export default function Mensura() {
                                 <span>Window:</span>
                                 {isDraft ? (
                                   <>
-                                    <input type="time" className="mw-time-input" step="300"
-                                      value={curStart}
+                                    <input type="text" className="mw-time-input" placeholder="HH:MM"
+                                      defaultValue={curStart}
+                                      key={`start-${pt.id}-${curStart}-${!hasEdits}`}
                                       onClick={(e) => e.stopPropagation()}
-                                      onChange={(e) => {
-                                        e.stopPropagation()
-                                        const val = roundTo5(e.target.value)
-                                        setEditedWindows(prev => ({ ...prev, [pt.id]: { ...prev[pt.id], start: val, end: prev[pt.id]?.end ?? curEnd } }))
+                                      onBlur={(e) => {
+                                        const val = normalizeTime(e.target.value)
+                                        if (val) {
+                                          e.target.value = val
+                                          setEditedWindows(prev => ({ ...prev, [pt.id]: { ...prev[pt.id], start: val, end: prev[pt.id]?.end ?? curEnd } }))
+                                        } else { e.target.value = curStart }
                                       }}
                                       onKeyDown={(e) => { if (e.key === 'Enter') { e.target.blur(); handleRecompute(pt) } }} />
                                     <span>—</span>
-                                    <input type="time" className="mw-time-input" step="300"
-                                      value={curEnd}
+                                    <input type="text" className="mw-time-input" placeholder="HH:MM"
+                                      defaultValue={curEnd}
+                                      key={`end-${pt.id}-${curEnd}-${!hasEdits}`}
                                       onClick={(e) => e.stopPropagation()}
-                                      onChange={(e) => {
-                                        e.stopPropagation()
-                                        const val = roundTo5(e.target.value)
-                                        setEditedWindows(prev => ({ ...prev, [pt.id]: { start: prev[pt.id]?.start ?? curStart, end: val } }))
+                                      onBlur={(e) => {
+                                        const val = normalizeTime(e.target.value)
+                                        if (val) {
+                                          e.target.value = val
+                                          setEditedWindows(prev => ({ ...prev, [pt.id]: { start: prev[pt.id]?.start ?? curStart, end: val } }))
+                                        } else { e.target.value = curEnd }
                                       }}
                                       onKeyDown={(e) => { if (e.key === 'Enter') { e.target.blur(); handleRecompute(pt) } }} />
                                     {hasEdits && (

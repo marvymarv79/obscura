@@ -178,7 +178,7 @@
 .mw-time-input {
   background: var(--bg-base); border: 1px solid var(--border-default);
   color: var(--text-primary); border-radius: 4px; padding: 3px 6px;
-  font-size: 12px; font-family: monospace;
+  font-size: 12px; font-family: monospace; width: 50px; text-align: center;
 }
 .mw-time-input:focus { border-color: #7c3aed; outline: none; }
 .mw-reset-link {
