@@ -470,6 +470,15 @@ export default function Mensura() {
 
                       {isExpanded && (
                         <div className="mw-target-expanded">
+                          {/* DSS Preview */}
+                          <div className="mw-dss-wrap">
+                            <img className="mw-dss-img" loading="lazy"
+                              src={`/api/obscura/preview-proxy?targetId=${pt.target_id}`}
+                              alt={tName}
+                              onError={(e) => { e.target.style.display = 'none' }} />
+                            <span className="mw-dss-credit">DSS2 · CDS Strasbourg</span>
+                          </div>
+
                           {/* Imaging window */}
                           {snap.imagingWindow && (
                             <div className="mw-window-row">
