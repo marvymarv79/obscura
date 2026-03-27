@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom'
 import { UserButton, SignedIn, SignedOut } from '@clerk/clerk-react'
 import { useApi } from './hooks/useApi'
 import Papa from 'papaparse'
+import ToolNav from './components/ToolNav'
 import './Vigilia.css'
 
 const TABS = [
@@ -370,10 +371,10 @@ function Vigilia() {
   // ── Render ──
   return (
     <div className="vigilia">
+      <ToolNav />
       {/* Nav */}
       <nav className="vig-nav">
         <div className="vig-nav-left">
-          <Link to="/" className="vig-hub-link">← Hub</Link>
           <Link to="/vigilia" className="vig-logo">
             <span className="vig-wordmark">Vigi<span>lia</span></span>
           </Link>

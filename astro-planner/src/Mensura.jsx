@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useUser, UserButton, SignedIn, SignedOut } from '@clerk/clerk-react'
 import { useApi } from './hooks/useApi'
+import ToolNav from './components/ToolNav'
 import './Mensura.css'
 
 const TYPE_COLORS = {
@@ -307,10 +308,10 @@ export default function Mensura() {
 
   return (
     <div className="mensura">
+      <ToolNav />
       {/* Nav */}
       <nav className="mensura-nav">
         <div className="mensura-nav-left">
-          <Link to="/" className="mensura-hub-link">← Hub</Link>
           <Link to="/mensura" className="mensura-logo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" stroke="#7c3aed" />
