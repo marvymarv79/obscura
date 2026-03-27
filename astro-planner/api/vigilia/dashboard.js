@@ -13,7 +13,7 @@ async function handler(req, res, userId) {
     const [foodResult] = await sql`
       SELECT COALESCE(SUM(quantity), 0)::numeric AS total
       FROM vig_inventory
-      WHERE user_id = ${userId} AND category = 'food'
+      WHERE user_id = ${userId} AND LOWER(category) = 'food'
     `
     const foodDays = Math.floor(parseFloat(foodResult.total) / 3)
 
@@ -21,7 +21,7 @@ async function handler(req, res, userId) {
     const [waterResult] = await sql`
       SELECT COALESCE(SUM(quantity), 0)::numeric AS total
       FROM vig_inventory
-      WHERE user_id = ${userId} AND category = 'water'
+      WHERE user_id = ${userId} AND LOWER(category) = 'water'
     `
     const waterDays = Math.floor(parseFloat(waterResult.total) / 2)
 
@@ -53,8 +53,8 @@ async function handler(req, res, userId) {
       SELECT
         l.name AS location_name,
         COUNT(i.id)::int AS item_count,
-        COALESCE(SUM(CASE WHEN i.category = 'food' THEN i.quantity ELSE 0 END), 0)::numeric AS food_qty,
-        COALESCE(SUM(CASE WHEN i.category = 'water' THEN i.quantity ELSE 0 END), 0)::numeric AS water_qty
+        COALESCE(SUM(CASE WHEN LOWER(i.category) = 'food' THEN i.quantity ELSE 0 END), 0)::numeric AS food_qty,
+        COALESCE(SUM(CASE WHEN LOWER(i.category) = 'water' THEN i.quantity ELSE 0 END), 0)::numeric AS water_qty
       FROM vig_locations l
       LEFT JOIN vig_inventory i ON i.location_id = l.id AND i.user_id = ${userId}
       WHERE l.user_id = ${userId}

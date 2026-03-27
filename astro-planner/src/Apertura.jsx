@@ -263,6 +263,10 @@ function Apertura() {
   // Shared
   const [toast, setToast] = useState(null)
 
+  // Edit/Add modal state
+  const [editModal, setEditModal] = useState(null) // { mode: 'edit'|'add', item, category }
+  const [editFormData, setEditFormData] = useState({})
+
   // Imaging Trains state
   const [profiles, setProfiles] = useState([])
   const [profilesLoading, setProfilesLoading] = useState(false)
@@ -370,6 +374,83 @@ function Apertura() {
     } catch (err) {
       console.error('[Apertura] Delete failed:', err.message)
     }
+  }
+
+  // ── Inventory item edit/add ──
+
+  const openEditItem = (item) => {
+    setEditModal({ mode: 'edit', item, category: activeCategory })
+    setEditFormData({ ...item })
+  }
+
+  const openAddItem = () => {
+    setEditModal({ mode: 'add', item: null, category: activeCategory })
+    setEditFormData({})
+  }
+
+  const handleSaveItem = async () => {
+    if (!editModal) return
+    const cat = CATEGORIES.find(c => c.key === editModal.category)
+    if (!cat) return
+    try {
+      if (editModal.mode === 'edit') {
+        const { id, created_at, ...rest } = editFormData
+        const res = await fetch('/api/apertura/items/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: cat.table, id: editModal.item.id, fields: rest })
+        })
+        if (!res.ok) {
+          const text = await res.text()
+          throw new Error(`API error ${res.status}: ${text}`)
+        }
+        showToast('Item updated')
+      } else {
+        const res = await fetch('/api/apertura/items/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: cat.table, fields: editFormData })
+        })
+        if (!res.ok) {
+          const text = await res.text()
+          throw new Error(`API error ${res.status}: ${text}`)
+        }
+        showToast('Item added')
+      }
+      setEditModal(null)
+      setEditFormData({})
+      fetchCategory(cat)
+    } catch (err) {
+      showToast(`Error: ${err.message}`)
+    }
+  }
+
+  const editField = (key, label, type = 'text', options = null) => (
+    <div className="apt-edit-field" key={key}>
+      <label>{label}</label>
+      {options ? (
+        <select value={editFormData[key] || ''} onChange={(e) => setEditFormData(prev => ({ ...prev, [key]: e.target.value }))}>
+          <option value="">— Select —</option>
+          {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      ) : type === 'textarea' ? (
+        <textarea value={editFormData[key] || ''} onChange={(e) => setEditFormData(prev => ({ ...prev, [key]: e.target.value }))} rows={3} />
+      ) : (
+        <input type={type} value={editFormData[key] || ''} onChange={(e) => setEditFormData(prev => ({ ...prev, [key]: e.target.value }))} />
+      )}
+    </div>
+  )
+
+  const renderEditModalFields = () => {
+    const cat = editModal?.category
+    if (cat === 'cameras') return (<>{editField('model', 'Model')}{editField('sensor_type', 'Sensor Type', 'text', [{ value: 'Mono', label: 'Mono' }, { value: 'OSC', label: 'OSC' }])}{editField('sensor_chip', 'Sensor Chip')}{editField('res_x', 'Resolution X', 'number')}{editField('res_y', 'Resolution Y', 'number')}{editField('pixel_size_um', 'Pixel Size (µm)', 'number')}{editField('bit_depth', 'Bit Depth', 'number')}{editField('bayer_pattern', 'Bayer Pattern')}{editField('notes', 'Notes', 'textarea')}</>)
+    if (cat === 'optics') return (<>{editField('model', 'Model')}{editField('type', 'Type')}{editField('focal_length_mm', 'Focal Length (mm)', 'number')}{editField('aperture_mm', 'Aperture (mm)', 'number')}{editField('focal_ratio', 'Focal Ratio', 'number')}{editField('notes', 'Notes', 'textarea')}</>)
+    if (cat === 'filters') return (<>{editField('model', 'Model')}{editField('filter_type', 'Filter Type')}{editField('bandpass_nm', 'Bandpass (nm)', 'number')}{editField('bandpass_width_nm', 'Bandpass Width (nm)', 'number')}{editField('transmission_pct', 'Transmission %', 'number')}{editField('size_description', 'Size Description')}{editField('notes', 'Notes', 'textarea')}</>)
+    if (cat === 'filterwheels') return (<>{editField('model', 'Model')}{editField('slot_count', 'Slot Count', 'number')}{editField('compatible_filter_sizes', 'Compatible Filter Sizes')}{editField('notes', 'Notes', 'textarea')}</>)
+    if (cat === 'accessories') return (<>{editField('model', 'Model')}{editField('category', 'Category')}{editField('reduction_factor', 'Reduction Factor', 'number')}{editField('compatible_optics', 'Compatible Optics')}{editField('notes', 'Notes', 'textarea')}</>)
+    if (cat === 'mounts') return (<>{editField('model', 'Model')}{editField('mount_type', 'Mount Type')}{editField('payload_kg', 'Payload (kg)', 'number')}{editField('notes', 'Notes', 'textarea')}</>)
+    if (cat === 'focusers') return (<>{editField('model', 'Model')}{editField('connection_type', 'Connection Type')}{editField('steps_per_rotation', 'Steps/Rotation', 'number')}{editField('notes', 'Notes', 'textarea')}</>)
+    return null
   }
 
   // ── Inventory CSV import ──
@@ -793,6 +874,7 @@ function Apertura() {
                 <div className="apt-inventory-header">
                   <h2 className="apt-inventory-title">{currentCat.label}</h2>
                   <div className="apt-inventory-actions">
+                    <button className="apt-btn-primary" onClick={openAddItem}>+ Add {currentCat.label.replace(/s$/, '')}</button>
                     <button className="apt-import-btn" onClick={handleImportCSV} disabled={importing}>
                       {importing ? 'Importing…' : 'Import CSV'}
                     </button>
@@ -809,6 +891,8 @@ function Apertura() {
                       <div key={item.id} className="apt-card-wrapper">
                         <CardComponent item={item} />
                         <div className="apt-card-actions">
+                          <button className="apt-card-action-btn apt-edit-btn"
+                            onClick={(e) => { e.stopPropagation(); openEditItem(item) }}>Edit</button>
                           {confirmDeleteId === item.id ? (
                             <>
                               <button className="apt-card-action-btn apt-delete-confirm"
@@ -863,14 +947,19 @@ function Apertura() {
                             <span className="apt-badge apt-badge--dim" style={{ marginTop: 4 }}>NINA export not supported</span>
                           )}
                         </div>
-                        {confirmDeleteId === p.id ? (
-                          <div className="apt-confirm-delete">
-                            <button className="apt-confirm-yes" onClick={() => deleteProfile(p.id)}>Delete?</button>
-                            <button className="apt-confirm-no" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
-                          </div>
-                        ) : (
-                          <button className="apt-delete-btn" onClick={() => setConfirmDeleteId(p.id)} title="Delete profile">×</button>
-                        )}
+                        <div className="apt-profile-actions">
+                          {!isNinaUnsupported(p.camera_notes) && (
+                            <button className="apt-btn-ghost apt-nina-shortcut" onClick={(e) => { e.stopPropagation(); setActiveTab('nina'); setTimeout(() => selectExportProfile(p), 100) }} title="Export to NINA">NINA</button>
+                          )}
+                          {confirmDeleteId === p.id ? (
+                            <div className="apt-confirm-delete">
+                              <button className="apt-confirm-yes" onClick={() => deleteProfile(p.id)}>Delete?</button>
+                              <button className="apt-confirm-no" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                            </div>
+                          ) : (
+                            <button className="apt-delete-btn" onClick={() => setConfirmDeleteId(p.id)} title="Delete profile">×</button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -975,6 +1064,24 @@ function Apertura() {
             </div>
           )}
         </div>
+
+        {/* ── Edit/Add Modal ── */}
+        {editModal && (
+          <div className="apt-overlay" onClick={(e) => { e.stopPropagation(); setEditModal(null); setEditFormData({}) }}>
+            <div className="apt-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="apt-modal-title">
+                {editModal.mode === 'edit' ? 'Edit' : 'Add'} {CATEGORIES.find(c => c.key === editModal.category)?.label.replace(/s$/, '') || 'Item'}
+              </div>
+              <div className="apt-modal-body">
+                {renderEditModalFields()}
+              </div>
+              <div className="apt-modal-actions">
+                <button className="apt-btn-ghost" onClick={(e) => { e.stopPropagation(); setEditModal(null); setEditFormData({}) }}>Cancel</button>
+                <button className="apt-btn-primary" onClick={(e) => { e.stopPropagation(); handleSaveItem() }}>Save</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {toast && <div className="apt-toast">{toast}</div>}
       </SignedIn>

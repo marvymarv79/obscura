@@ -15,8 +15,8 @@ async function handler(req, res, userId) {
       if (existing.length === 0) {
         for (const name of DEFAULT_LOCATIONS) {
           await sql`
-            INSERT INTO vig_locations (user_id, name)
-            VALUES (${userId}, ${name})
+            INSERT INTO vig_locations (user_id, name, is_protected)
+            VALUES (${userId}, ${name}, true)
           `
         }
       }

@@ -427,7 +427,9 @@ function Vigilia() {
                           <div className="vig-loc-card-name">{loc.locationName}</div>
                           <div className="vig-loc-card-stats">
                             <span>{loc.itemCount} items</span>
+                            <span className="vig-loc-sep">·</span>
                             <span className={foodColor(loc.foodDays || 0)}>{Math.round(loc.foodDays || 0)}d food</span>
+                            <span className="vig-loc-sep">·</span>
                             <span className={waterColor(loc.waterDays || 0)}>{Math.round(loc.waterDays || 0)}d water</span>
                           </div>
                         </div>
@@ -560,7 +562,7 @@ function Vigilia() {
                               <td>{a.caliber}</td>
                               <td>{a.brand || '—'}</td>
                               <td>{a.load_name || '—'}</td>
-                              <td>{a.ammo_type || '—'}</td>
+                              <td>{a.ammo_type ? a.ammo_type.charAt(0).toUpperCase() + a.ammo_type.slice(1) : '—'}</td>
                               <td>{a.quantity}</td>
                               <td>{a.location_name || locName(a.location_id)}</td>
                               <td className="vig-actions">
@@ -680,10 +682,13 @@ function Vigilia() {
               <div className="vig-loc-list">
                 {locations.map(loc => (
                   <div className="vig-loc-item" key={loc.id}>
-                    <div className="vig-loc-name">{loc.name}</div>
+                    <div className="vig-loc-name">
+                      {loc.name}
+                      {loc.is_protected && <span className="vig-badge vig-badge-muted" style={{ marginLeft: 8, fontSize: '0.65rem' }}>Default</span>}
+                    </div>
                     <div className="vig-actions">
                       <button className="vig-edit-btn" onClick={(e) => { e.stopPropagation(); openEdit('locations', loc) }}>Edit</button>
-                      {deleteBtn('locations', loc.id)}
+                      {!loc.is_protected && deleteBtn('locations', loc.id)}
                     </div>
                   </div>
                 ))}
@@ -749,7 +754,20 @@ function Vigilia() {
                 {modal.type === 'inventory' && (
                   <>
                     {field('name', 'Name')}
-                    {field('category', 'Category')}
+                    {field('category', 'Category', 'text', [
+                      { value: 'Food', label: 'Food' },
+                      { value: 'Water', label: 'Water' },
+                      { value: 'Medical', label: 'Medical' },
+                      { value: 'Tools', label: 'Tools' },
+                      { value: 'Electronics', label: 'Electronics' },
+                      { value: 'Fuel', label: 'Fuel' },
+                      { value: 'Clothing', label: 'Clothing' },
+                      { value: 'Shelter', label: 'Shelter' },
+                      { value: 'Communication', label: 'Communication' },
+                      { value: 'Hygiene', label: 'Hygiene' },
+                      ...[...new Set(inventory.map(i => i.category).filter(Boolean))].filter(c => !['Food', 'Water', 'Medical', 'Tools', 'Electronics', 'Fuel', 'Clothing', 'Shelter', 'Communication', 'Hygiene'].includes(c)).sort().map(c => ({ value: c, label: c })),
+                      { value: 'Other', label: 'Other' },
+                    ])}
                     {field('quantity', 'Quantity', 'number')}
                     {field('unit', 'Unit')}
                     {field('min_threshold', 'Min Threshold', 'number')}

@@ -17,10 +17,14 @@ async function handler(req, res, userId) {
 
     // Verify ownership
     const [existing] = await sql`
-      SELECT id FROM vig_locations WHERE id = ${id} AND user_id = ${userId}
+      SELECT id, is_protected FROM vig_locations WHERE id = ${id} AND user_id = ${userId}
     `
     if (!existing) {
       return res.status(404).json({ error: 'Location not found' })
+    }
+
+    if (existing.is_protected) {
+      return res.status(400).json({ error: 'Cannot delete a protected default location' })
     }
 
     // Check if location has items assigned
