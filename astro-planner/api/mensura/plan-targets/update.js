@@ -79,7 +79,22 @@ async function handler(req, res, userId) {
     const transit = getTransitTime(ra, lat, lng, planDate)
     const scoreResult = scoreTarget(target, location, planDate, null, [])
     const hdr = needsHDR(target)
-    const filterSeq = getFilterSequence(target, imagingWindow, transit, 'mono', utcOffset)
+
+    // Determine camera type from imaging train
+    let cameraType = 'Mono'
+    const trainId = updated.imaging_train_id
+    if (trainId) {
+      try {
+        const [trainRow] = await sql`
+          SELECT c.sensor_type FROM apt_imaging_profiles p
+          JOIN apt_cameras c ON p.camera_id = c.id
+          WHERE p.id = ${trainId}
+        `
+        if (trainRow?.sensor_type === 'OSC') cameraType = 'OSC'
+      } catch (e) { /* Apertura tables may not exist */ }
+    }
+
+    const filterSeq = getFilterSequence(target, imagingWindow, transit, cameraType === 'Mono' ? 'mono' : 'OSC', utcOffset)
 
     const snapshot = {
       targetId: target.id,
@@ -122,6 +137,7 @@ async function handler(req, res, userId) {
         return { totalMinutes: mapped.reduce((s, m) => s + m.minutes, 0), perFilter: mapped }
       })(),
       needsHDR: hdr,
+      cameraType,
       altitudePoints: computeAltitudePoints(ra, dec, lat, lng, imagingWindow, utcOffset)
     }
 

@@ -630,7 +630,56 @@ export default function Mensura() {
                           )}
 
                           {/* Calibration frames */}
-                          {snap.calibrationFrames && (
+                          {snap.filterSequence && snap.filterSequence.length > 0 && (() => {
+                            const blocks = snap.filterSequence
+                            const isMono = (snap.cameraType || 'Mono') === 'Mono'
+                            const darkBlock = blocks.reduce((best, b) =>
+                              (b.subs || 0) > (best.subs || 0) ? b : best, blocks[0])
+                            const darkCount = darkBlock.subs || 0
+                            const darkSub = darkBlock.subLength
+                            const darkSubDisplay = darkSub != null ? `${darkSub}s` : '—'
+                            const filters = [...new Set(blocks.map(b => b.filter))]
+                            return (
+                              <div className="mw-filter-section">
+                                <div className="mw-filter-header">
+                                  <span className="mw-filter-label">Calibration Frames</span>
+                                </div>
+                                <div className="mw-ft-table">
+                                  <div className="mw-ft-head mw-cal-head">
+                                    <span>Frame</span><span>Count</span><span>Sub length</span>
+                                  </div>
+                                  {darkCount > 0 && (
+                                    <div className="mw-ft-row mw-cal-row-new">
+                                      <span className="mw-cal-frame-label">Darks</span>
+                                      <span>{darkCount}</span>
+                                      <span>{darkSubDisplay}</span>
+                                    </div>
+                                  )}
+                                  {isMono ? filters.map(f => (
+                                    <div key={`flat-${f}`} className="mw-ft-row mw-cal-row-new">
+                                      <span className="mw-filter-pill" style={{ background: FILTER_COLORS[f] || '#666' }}>Flats ({f})</span>
+                                      <span>25</span>
+                                      <span>—</span>
+                                    </div>
+                                  )) : (
+                                    <div className="mw-ft-row mw-cal-row-new">
+                                      <span className="mw-cal-frame-label">Flats</span>
+                                      <span>25</span>
+                                      <span>—</span>
+                                    </div>
+                                  )}
+                                  <div className="mw-ft-row mw-cal-row-new">
+                                    <span className="mw-cal-frame-label">Bias</span>
+                                    <span>50</span>
+                                    <span>—</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })()}
+
+                          {/* Legacy calibration frames from snapshot */}
+                          {snap.calibrationFrames && !snap.filterSequence?.length && (
                             <div className="mw-cal-section">
                               <div className="mw-cal-header">
                                 <span className="mw-cal-label">Calibration Frames</span>
