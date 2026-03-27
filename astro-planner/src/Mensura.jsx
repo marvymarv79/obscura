@@ -582,6 +582,52 @@ export default function Mensura() {
                             </div>
                           )}
 
+                          {/* Calibration frames */}
+                          {snap.calibrationFrames && (
+                            <div className="mw-cal-section">
+                              <div className="mw-cal-header">
+                                <span className="mw-cal-label">Calibration Frames</span>
+                                {snap.calibrationWindowMinutes > 0 && (
+                                  <span className="mw-cal-time">{snap.calibrationWindowMinutes}min reserved</span>
+                                )}
+                              </div>
+                              {snap.calibrationFrames.note && (
+                                <div className="mw-cal-note">{snap.calibrationFrames.note}</div>
+                              )}
+                              {snap.calibrationFrames.flats?.length > 0 && (
+                                <>
+                                  <div className="mw-cal-sub-label">Flats</div>
+                                  <div className="mw-cal-table">
+                                    {snap.calibrationFrames.flats.map((f, i) => (
+                                      <div key={`flat-${i}`} className="mw-cal-row">
+                                        <span className="mw-filter-pill" style={{ background: FILTER_COLORS[f.filter] || '#666' }}>{f.filter}</span>
+                                        <span>{f.count}x</span>
+                                        <span className="mw-cal-notes">{f.notes}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                              {snap.calibrationFrames.darkFlats?.length > 0 && (
+                                <>
+                                  <div className="mw-cal-sub-label">Dark Flats</div>
+                                  <div className="mw-cal-table">
+                                    {snap.calibrationFrames.darkFlats.map((f, i) => (
+                                      <div key={`df-${i}`} className="mw-cal-row">
+                                        <span className="mw-filter-pill" style={{ background: FILTER_COLORS[f.filter] || '#666' }}>{f.filter}</span>
+                                        <span>{f.count}x</span>
+                                        <span className="mw-cal-notes">{f.notes}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                              {snap.calibrationFrames.recommendedOrder && (
+                                <div className="mw-cal-order">{snap.calibrationFrames.recommendedOrder}</div>
+                              )}
+                            </div>
+                          )}
+
                           {/* HDR warning */}
                           {snap.needsHDR && (
                             <div className="mw-hdr-warning">⚠ HDR recommended — add 30s subs during L window</div>
