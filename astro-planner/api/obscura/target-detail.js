@@ -103,6 +103,10 @@ export default async function handler(req, res) {
       }
     })
 
+    // Calibration time reservation based on distinct filters
+    const distinctFilters = [...new Set(filterSequence.map(b => b.filter))]
+    const calibrationWindowMinutes = Math.ceil(distinctFilters.length * 2.5) + 10
+
     // Check if wind is too high (any sub returned null)
     const windTooHigh = subExposures.some(b => b.recommendedSubExposure === null)
 
@@ -162,6 +166,7 @@ export default async function handler(req, res) {
       bestTrainId: scoreResult.bestTrainId,
       bestTrainName: scoreResult.bestTrainName,
       filterSequence: subExposures,
+      calibrationWindowMinutes,
       hdr,
       windTooHigh,
       weekSchedule,

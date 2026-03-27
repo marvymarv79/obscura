@@ -526,6 +526,13 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                           </div>
                         )}
 
+                        {/* Calibration window callout */}
+                        {detailData.filterSequence && detailData.filterSequence.length > 0 && detailData.calibrationWindowMinutes > 0 && !detailData.windTooHigh && (
+                          <div className="cal-window-callout">
+                            Imaging ends at {detailData.filterSequence[detailData.filterSequence.length - 1]?.end || '—'} · Calibration window: {detailData.calibrationWindowMinutes} min
+                          </div>
+                        )}
+
                         {/* Section 3b: Calibration Frames */}
                         {detailData.filterSequence && detailData.filterSequence.length > 0 && !detailData.windTooHigh && (() => {
                           const blocks = detailData.filterSequence

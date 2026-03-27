@@ -105,6 +105,7 @@ export default async function handler(req, res) {
       filterSequence: parsed.filterSequence,
       strategy: parsed.strategy || 'block',
       sessionRationale: parsed.sessionRationale || '',
+      sessionParameters: parsed.sessionParameters || null,
       calibrationFrames: parsed.calibrationFrames || null,
       calibrationWindowMinutes: calibrationMinutes
     })
@@ -159,11 +160,16 @@ Return ONLY valid JSON matching this exact schema — no markdown fences, no pre
       "subs": <number>,
       "subLength": <seconds>,
       "totalMinutes": <number>,
-      "rationale": "<one sentence>"
+      "rationale": "<one sentence explaining why this filter is scheduled here>"
     }
   ],
-  "strategy": "<plain-English explanation of the ordering rationale>",
+  "strategy": "<plain-English explanation of the ordering rationale, referencing atmospheric conditions and transit timing>",
   "sessionRationale": "<2-3 sentence session summary>",
+  "sessionParameters": {
+    "ditherCadence": "<e.g. Every 3 frames>",
+    "coolingTarget": "<e.g. -10°C>",
+    "gainRecommendation": "<e.g. 100 (unity gain for ZWO 2600MM)>"
+  },
   "calibrationFrames": {
     "estimatedMinutes": ${calibrationMinutes},
     "note": "Complete before teardown",
@@ -193,26 +199,44 @@ SESSION DATA:
 - Focal ratio: f/${imagingTrain.focalRatio || 'unknown'}
 ${forecastSlice?.length ? `- Forecast: ${JSON.stringify(forecastSlice.slice(0, 6))}` : ''}
 
-ATMOSPHERIC FILTER ORDERING RULES — follow these strictly:
-1. Luminance (L) and Red (R): Schedule during the DARKEST part of the window, centered on or before transit. Red is the MOST vulnerable to sky glow — NEVER schedule Red near dawn.
-2. Green (G): Schedule mid-session.
-3. Blue (B), Ha, OIII, SII: Schedule toward END of session as astronomical twilight approaches. Narrowband filters cut through sky glow effectively. Blue wavelengths are the last to be drowned out as dawn brightens.
-4. If dawn is approaching at session end, the last filter blocks should be narrowband (Ha/OIII/SII) or Blue — never Red or Luminance.
-5. The "strategy" field must include a plain-English explanation of WHY filters were ordered this way, referencing atmospheric conditions.
+ATMOSPHERIC FILTER ORDERING RULES — follow these strictly in this exact priority order:
+1. Luminance (L): Schedule FIRST, centered before or on transit, during the DARKEST part of the window. L captures fine detail and benefits most from peak seeing at transit.
+2. Red (R): Schedule early-to-mid session. Red is the MOST vulnerable to sky glow — NEVER schedule Red near dawn.
+3. Green (G): Schedule mid-session.
+4. Blue (B): Schedule late in session. Among LRGB, Blue is LAST — blue wavelengths are the last to be overwhelmed as dawn brightens.
+5. Ha, OIII, SII (narrowband): Push toward END of session as astronomical twilight approaches. Narrowband filters cut through sky glow effectively.
+6. If no narrowband filters are present, the order must be: L → R → G → B.
+7. If dawn is approaching at session end, the last filter blocks should be narrowband (Ha/OIII/SII) or Blue — NEVER Red or Luminance.
+8. The "strategy" field MUST include a plain-English explanation of WHY filters were ordered this way, referencing atmospheric conditions and transit timing.
+
+TIME ALLOCATION TARGETS — follow these ratios:
+9. Luminance (L): Allocate 40–50% of total imaging time.
+10. Each color channel (R, G, B): Allocate 15–20% each.
+11. Narrowband (Ha, OIII, SII): Allocate remaining time, pushed toward end of session.
+12. If only narrowband filters are present (no LRGB), distribute time based on target emission characteristics.
+
+SUB LENGTH GUIDANCE:
+13. Luminance subs are typically SHORTER than color subs (detail vs SNR priority).
+14. Narrowband subs are typically the LONGEST (300–600s). Each block must have at least 1 sub.
+15. Use the camera gain and focal ratio to calibrate sub lengths. Higher gain = shorter subs; slower focal ratio = longer subs.
+
+SESSION PARAMETERS:
+16. Dither cadence: Recommend every 3 frames for ZWO 2600MM-class sensors (large format CMOS), every 5 frames for smaller sensors. Include in sessionParameters.
+17. Cooling target: Recommend -10°C as default for Texas ambient temps. Adjust if camera model suggests otherwise. Include in sessionParameters.
+18. Gain recommendation: Suggest unity gain for the camera model if known. Include in sessionParameters.
 
 ADDITIONAL PLANNING RULES:
-6. Moon set time: If moon sets mid-session, schedule OIII and SII in the dark half (after moonset). These filters are more affected by moonlight than Ha.
-7. Target emission type: Ha-dominant targets (Rosette, California, Heart, North America) get more Ha time. OIII-bright targets (Veil, Bubble, Crescent) get more OIII time. SII is almost always the faintest emission — give it more time than an equal split would.
-8. Transit timing: Anchor the most critical filter near meridian for best seeing.
-9. Focal ratio: f/10+ is extra sensitive to poor seeing. Weight the resolution-critical filter at transit more heavily.
-10. Blocking vs interleaving: Default to "block" (one filter at a time). Only suggest "interleave" if session > 4h AND seeing is stable throughout the forecast.
-11. Wind/seeing trend: If seeing degrades in later forecast slots, front-load the resolution-critical filter.
-12. Sub lengths should be 300-600s for narrowband. Each block must have at least 1 sub.
-13. The filter blocks must cover the entire imaging window (${imagingWindow.start} to ${imagingWindow.end}) with no gaps.
+19. Moon set time: If moon sets mid-session, schedule OIII and SII in the dark half (after moonset). These filters are more affected by moonlight than Ha.
+20. Target emission type: Ha-dominant targets (Rosette, California, Heart, North America) get more Ha time. OIII-bright targets (Veil, Bubble, Crescent) get more OIII time. SII is almost always the faintest emission — give it more time than an equal split would.
+21. Transit timing: Anchor the most critical filter (usually L or the resolution-critical filter) near meridian for best seeing.
+22. Focal ratio: f/10+ is extra sensitive to poor seeing. Weight the resolution-critical filter at transit more heavily.
+23. Blocking vs interleaving: Default to "block" (one filter at a time). Only suggest "interleave" if session > 4h AND seeing is stable throughout the forecast.
+24. Wind/seeing trend: If seeing degrades in later forecast slots, front-load the resolution-critical filter.
+25. The filter blocks must cover the entire imaging window (${imagingWindow.start} to ${imagingWindow.end}) with no gaps.
 
 CALIBRATION FRAME RULES:
-14. For flats: Recommend 20-50 flats per filter. Lower gain → more flats needed (higher read noise contribution). Higher gain → fewer flats needed. Use the camera model and gain to calibrate.
-15. For dark flats: Same count as flats, same gain and temperature. Cap on, same exposure as flats.
-16. Recommended order: Flats first (all filters, flat panel), then dark flats (all filters, cap on).
-17. Include every filter used in the light frame sequence in both flats and darkFlats arrays.`
+26. For flats: Recommend 20-50 flats per filter. Lower gain → more flats needed (higher read noise contribution). Higher gain → fewer flats needed. Use the camera model and gain to calibrate.
+27. For dark flats: Same count as flats, same gain and temperature. Cap on, same exposure as flats.
+28. Recommended order: Flats first (all filters, flat panel), then dark flats (all filters, cap on).
+29. Include every filter used in the light frame sequence in both flats and darkFlats arrays.`
 }
