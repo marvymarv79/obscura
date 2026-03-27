@@ -76,8 +76,10 @@ export default function Mensura() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [showCatalog, setShowCatalog] = useState(false)
-  const [journalPrompt, setJournalPrompt] = useState(null)
   const [planName, setPlanName] = useState('')
+  // Mark Complete modal: { planId, step: 'notes'|'loading'|'draft', userNotes, draft, planData, targets }
+  const [completeModal, setCompleteModal] = useState(null)
+  const [completedCollapsed, setCompletedCollapsed] = useState(true)
   const [imagingTrains, setImagingTrains] = useState([])
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null)
   const [confirmDeletePlanId, setConfirmDeletePlanId] = useState(null)
@@ -160,15 +162,80 @@ export default function Mensura() {
     setSaving(false)
   }
 
-  // Mark complete
-  const handleComplete = async () => {
-    if (!planDetail) return
+  // Mark complete — open the notes modal
+  const handleComplete = async (planId) => {
+    const id = planId || planDetail?.id
+    if (!id) return
+    // If opening from sidebar for a different plan, load it first
+    if (id !== selectedPlanId) {
+      setSelectedPlanId(id)
+      await loadPlanDetail(id)
+      setExpandedTarget(null)
+    }
+    setCompleteModal({ planId: id, step: 'notes', userNotes: '' })
+  }
+
+  // Draft journal entry via LLM
+  const handleDraftJournal = async () => {
+    if (!completeModal) return
+    const { planId, userNotes } = completeModal
+    setCompleteModal(prev => ({ ...prev, step: 'loading' }))
     try {
-      await post('/api/mensura/plans/complete', { id: planDetail.id })
-      setJournalPrompt(planDetail)
-      await loadPlanDetail(planDetail.id)
+      const res = await post('/api/mensura/draft-journal', { planId, userNotes })
+      setCompleteModal(prev => ({
+        ...prev,
+        step: 'draft',
+        draft: res.draft,
+        planData: res.plan,
+        targets: res.targets
+      }))
+    } catch (err) {
+      console.error('Draft journal error:', err)
+      setCompleteModal(prev => ({ ...prev, step: 'notes' }))
+      showToast('Failed to draft journal entry')
+    }
+  }
+
+  // Save journal entry to Obscura
+  const handleSaveJournal = async () => {
+    if (!completeModal) return
+    const { planId, draft, planData, targets } = completeModal
+    const targetNames = (targets || []).map(t => {
+      const m = t.messierNumber
+      return m ? `M${m} (${t.ngcIcId})` : t.ngcIcId
+    }).join(', ')
+    const title = `Session ${formatDate(planData?.planDate || '')} — ${targetNames || planData?.locationName || ''}`
+    try {
+      await post('/api/mensura/save-journal', {
+        planId,
+        title,
+        content: draft,
+        entryDate: planData?.planDate || new Date().toISOString().split('T')[0]
+      })
+      setCompleteModal(null)
+      await loadPlanDetail(planId)
       await loadPlans()
-    } catch (err) { console.error('Complete error:', err) }
+      showToast('Journal entry saved')
+    } catch (err) {
+      console.error('Save journal error:', err)
+      showToast('Failed to save journal entry')
+    }
+  }
+
+  // Skip journal — just mark complete without a journal entry
+  const handleSkipJournal = async () => {
+    if (!completeModal) return
+    const { planId } = completeModal
+    try {
+      await post('/api/mensura/plans/complete', { id: planId })
+      setCompleteModal(null)
+      await loadPlanDetail(planId)
+      await loadPlans()
+      showToast('Session marked complete')
+    } catch (err) {
+      console.error('Skip journal error:', err)
+      showToast('Failed to mark complete')
+    }
   }
 
   // Edit (clear snapshot, return to draft)
@@ -325,19 +392,6 @@ export default function Mensura() {
     searchCatalog(catalogSearch, type, 0)
   }
 
-  // Journal prompt
-  const handleJournalCreate = () => {
-    // Navigate to Obscura journal with prefill data
-    const targetNames = planTargets.map(pt => targetName(pt)).join(', ')
-    const prefill = encodeURIComponent(JSON.stringify({
-      title: `Session ${formatDate(planDetail?.plan_date || '')} — ${planDetail?.location_name || ''}`,
-      content: `Location: ${planDetail?.location_name}\nTargets: ${targetNames}\n\nNotes:\n`,
-      entryDate: planDetail?.plan_date
-    }))
-    window.location.href = `/obscura?tab=journal&prefill=${prefill}`
-    setJournalPrompt(null)
-  }
-
   // Toast
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000) }
 
@@ -367,6 +421,9 @@ export default function Mensura() {
   const isDraft = !planDetail?.status || planDetail.status === 'draft'
   const isComplete = planDetail?.status === 'complete'
   const overlaps = planDetail ? getOverlaps() : []
+
+  const activePlans = plans.filter(p => p.status !== 'complete')
+  const completedPlans = plans.filter(p => p.status === 'complete')
 
   return (
     <div className="mensura">
@@ -398,40 +455,81 @@ export default function Mensura() {
           <div className="ms-plan-list">
             {loading ? <div style={{ padding: 16, color: 'var(--text-dim)' }}>Loading...</div> :
               plans.length === 0 ? <div style={{ padding: 16, color: 'var(--text-dim)', fontSize: 12 }}>No plans yet</div> :
-              plans.map(plan => (
-                <div key={plan.id}
-                  className={`ms-plan-card ${selectedPlanId === plan.id ? 'selected' : ''}`}
-                  onClick={() => selectPlan(plan)}>
-                  {plan.name && <div className="ms-plan-name">{plan.name}</div>}
-                  <div className="ms-plan-date">{formatDate(plan.plan_date)}</div>
-                  <div className="ms-plan-location">{plan.location_name}</div>
-                  {plan.target_names && plan.target_names.length > 0 && (
-                    <div className="ms-plan-targets">
-                      {plan.target_names.slice(0, 3).join(', ')}
-                      {plan.target_count > 3 ? ` + ${plan.target_count - 3} more` : ''}
-                    </div>
-                  )}
-                  <div className="ms-plan-footer">
-                    {plan.forecast_score != null && (
-                      <span className="ms-forecast-badge" style={{ color: getScoreColor(plan.forecast_score) }}>
-                        {plan.forecast_score}
-                      </span>
+              <>
+                {activePlans.map(plan => (
+                  <div key={plan.id}
+                    className={`ms-plan-card ${selectedPlanId === plan.id ? 'selected' : ''}`}
+                    onClick={() => selectPlan(plan)}>
+                    {plan.name && <div className="ms-plan-name">{plan.name}</div>}
+                    <div className="ms-plan-date">{formatDate(plan.plan_date)}</div>
+                    <div className="ms-plan-location">{plan.location_name}</div>
+                    {plan.target_names && plan.target_names.length > 0 && (
+                      <div className="ms-plan-targets">
+                        {plan.target_names.slice(0, 3).join(', ')}
+                        {plan.target_count > 3 ? ` + ${plan.target_count - 3} more` : ''}
+                      </div>
                     )}
-                    {plan.status === 'complete' && <span className="ms-complete-pill">✓ Complete</span>}
-                    {confirmDeletePlanId === plan.id ? (
-                      <>
-                        <button className="ms-sidebar-del-btn ms-del-confirm"
-                          onClick={(e) => { e.stopPropagation(); handleSidebarDelete(plan.id) }}>Delete?</button>
+                    <div className="ms-plan-footer">
+                      {plan.forecast_score != null && (
+                        <span className="ms-forecast-badge" style={{ color: getScoreColor(plan.forecast_score) }}>
+                          {plan.forecast_score}
+                        </span>
+                      )}
+                      {plan.status !== 'draft' && plan.status !== 'complete' && (
+                        <button className="ms-complete-btn"
+                          onClick={(e) => { e.stopPropagation(); handleComplete(plan.id) }}>Mark Complete</button>
+                      )}
+                      {confirmDeletePlanId === plan.id ? (
+                        <>
+                          <button className="ms-sidebar-del-btn ms-del-confirm"
+                            onClick={(e) => { e.stopPropagation(); handleSidebarDelete(plan.id) }}>Delete?</button>
+                          <button className="ms-sidebar-del-btn"
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeletePlanId(null) }}>Cancel</button>
+                        </>
+                      ) : (
                         <button className="ms-sidebar-del-btn"
-                          onClick={(e) => { e.stopPropagation(); setConfirmDeletePlanId(null) }}>Cancel</button>
-                      </>
-                    ) : (
-                      <button className="ms-sidebar-del-btn"
-                        onClick={(e) => { e.stopPropagation(); setConfirmDeletePlanId(plan.id) }}>×</button>
-                    )}
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeletePlanId(plan.id) }}>×</button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {completedPlans.length > 0 && (
+                  <>
+                    <div className="ms-completed-header"
+                      onClick={() => setCompletedCollapsed(!completedCollapsed)}>
+                      <span>{completedCollapsed ? '▶' : '▼'} Completed ({completedPlans.length})</span>
+                    </div>
+                    {!completedCollapsed && completedPlans.map(plan => (
+                      <div key={plan.id}
+                        className={`ms-plan-card ms-plan-completed ${selectedPlanId === plan.id ? 'selected' : ''}`}
+                        onClick={() => selectPlan(plan)}>
+                        {plan.name && <div className="ms-plan-name">{plan.name}</div>}
+                        <div className="ms-plan-date">{formatDate(plan.plan_date)}</div>
+                        <div className="ms-plan-location">{plan.location_name}</div>
+                        <div className="ms-plan-footer">
+                          <span className="ms-complete-pill">✓ Complete</span>
+                          {plan.completed_at && (
+                            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                              {formatDate(plan.completed_at)}
+                            </span>
+                          )}
+                          {confirmDeletePlanId === plan.id ? (
+                            <>
+                              <button className="ms-sidebar-del-btn ms-del-confirm"
+                                onClick={(e) => { e.stopPropagation(); handleSidebarDelete(plan.id) }}>Delete?</button>
+                              <button className="ms-sidebar-del-btn"
+                                onClick={(e) => { e.stopPropagation(); setConfirmDeletePlanId(null) }}>Cancel</button>
+                            </>
+                          ) : (
+                            <button className="ms-sidebar-del-btn"
+                              onClick={(e) => { e.stopPropagation(); setConfirmDeletePlanId(plan.id) }}>×</button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
             }
           </div>
         </aside>
@@ -911,25 +1009,64 @@ export default function Mensura() {
             </div>
           )}
 
-          {/* Journal Prompt */}
-          {journalPrompt && (
-            <div className="mw-journal-overlay" onClick={(e) => { e.stopPropagation(); setJournalPrompt(null) }}>
-              <div className="mw-journal-modal" onClick={(e) => e.stopPropagation()}>
-                <h4>Plan complete — log your session?</h4>
-                <p className="mw-journal-desc">Create a journal entry to capture notes and track progress.</p>
-                <div className="mw-journal-preview">
-                  <div><strong>Date:</strong> {formatDate(planDetail?.plan_date || '')}</div>
-                  <div><strong>Location:</strong> {planDetail?.location_name || 'Unknown'}</div>
-                  <div><strong>Targets:</strong> {planTargets.map(pt => targetName(pt)).join(', ')}</div>
-                </div>
-                <div className="mw-journal-actions">
-                  <button className="mw-journal-create" onClick={(e) => { e.stopPropagation(); handleJournalCreate() }}>
-                    Create journal entry →
-                  </button>
-                  <button className="mw-journal-skip" onClick={(e) => { e.stopPropagation(); setJournalPrompt(null) }}>
-                    Skip for now
-                  </button>
-                </div>
+          {/* Mark Complete Modal — 3 states: notes → loading → draft */}
+          {completeModal && (
+            <div className="mw-journal-overlay" onClick={(e) => { e.stopPropagation(); if (completeModal.step !== 'loading') setCompleteModal(null) }}>
+              <div className="mw-journal-modal mw-complete-modal" onClick={(e) => e.stopPropagation()}>
+                {completeModal.step === 'notes' && (
+                  <>
+                    <h4>Mark Session Complete</h4>
+                    <p className="mw-journal-desc">Add any notes about this session and we'll draft a journal entry for you.</p>
+                    <div className="mw-journal-preview">
+                      <div><strong>Date:</strong> {formatDate(planDetail?.plan_date || '')}</div>
+                      <div><strong>Location:</strong> {planDetail?.location_name || 'Unknown'}</div>
+                      <div><strong>Targets:</strong> {planTargets.map(pt => targetName(pt)).join(', ')}</div>
+                      {planTargets.some(pt => pt.snapshot?.filterSequence) && (
+                        <div style={{ marginTop: 6 }}><strong>Filters:</strong> {[...new Set(planTargets.flatMap(pt => (pt.snapshot?.filterSequence || []).map(f => f.filter)))].join(', ')}</div>
+                      )}
+                      {planTargets.some(pt => pt.snapshot?.exposureSummary) && (
+                        <div><strong>Total integration:</strong> {formatDuration(totalTime)}</div>
+                      )}
+                    </div>
+                    <textarea className="mw-complete-notes"
+                      placeholder="How did the session go? Any issues with tracking, weather changes, equipment notes..."
+                      value={completeModal.userNotes}
+                      onChange={(e) => setCompleteModal(prev => ({ ...prev, userNotes: e.target.value }))}
+                      rows={4} />
+                    <div className="mw-journal-actions">
+                      <button className="mw-journal-create" onClick={(e) => { e.stopPropagation(); handleDraftJournal() }}>
+                        Draft journal entry →
+                      </button>
+                      <button className="mw-journal-skip" onClick={(e) => { e.stopPropagation(); handleSkipJournal() }}>
+                        Skip journal
+                      </button>
+                    </div>
+                  </>
+                )}
+                {completeModal.step === 'loading' && (
+                  <div className="mw-complete-loading">
+                    <div className="mw-spinner" />
+                    <p>Drafting your journal entry...</p>
+                  </div>
+                )}
+                {completeModal.step === 'draft' && (
+                  <>
+                    <h4>Review Journal Entry</h4>
+                    <p className="mw-journal-desc">Edit the draft below, then save it to your Obscura journal.</p>
+                    <textarea className="mw-complete-draft"
+                      value={completeModal.draft}
+                      onChange={(e) => setCompleteModal(prev => ({ ...prev, draft: e.target.value }))}
+                      rows={12} />
+                    <div className="mw-journal-actions">
+                      <button className="mw-journal-create" onClick={(e) => { e.stopPropagation(); handleSaveJournal() }}>
+                        Save to Journal
+                      </button>
+                      <button className="mw-journal-skip" onClick={(e) => { e.stopPropagation(); handleSkipJournal() }}>
+                        Skip journal
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
