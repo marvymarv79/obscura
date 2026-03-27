@@ -3902,6 +3902,12 @@ tbody tr:hover {
   font-weight: var(--font-heading);
 }
 
+/* Calibration Frames table (3-column layout) */
+.filter-table-header.cal-header,
+.filter-table-row.cal-row {
+  grid-template-columns: 100px 60px 80px;
+}
+
 /* Exposure Summary */
 .exposure-summary {
   font-size: 0.8rem;

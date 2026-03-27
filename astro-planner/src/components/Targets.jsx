@@ -526,6 +526,55 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                           </div>
                         )}
 
+                        {/* Section 3b: Calibration Frames */}
+                        {detailData.filterSequence && detailData.filterSequence.length > 0 && !detailData.windTooHigh && (() => {
+                          const blocks = detailData.filterSequence
+                          const isMono = detailData.cameraType === 'Mono'
+                          // Darks: match highest-sub-count block
+                          const darkBlock = blocks.reduce((best, b) =>
+                            (b.estimatedSubs || 0) > (best.estimatedSubs || 0) ? b : best, blocks[0])
+                          const darkCount = darkBlock.estimatedSubs || 0
+                          const darkSub = darkBlock.recommendedSubExposure
+                          const darkSubDisplay = darkSub != null ? `${darkSub}s` : '—'
+                          // Unique filters for flats
+                          const filters = [...new Set(blocks.map(b => b.filter))]
+                          return (
+                            <div className="detail-section">
+                              <div className="detail-section-title">Calibration Frames</div>
+                              <div className="filter-table">
+                                <div className="filter-table-header cal-header">
+                                  <span>Frame</span><span>Count</span><span>Sub length</span>
+                                </div>
+                                {darkCount > 0 && (
+                                  <div className="filter-table-row cal-row">
+                                    <span className="ft-filter">Darks</span>
+                                    <span>{darkCount}</span>
+                                    <span>{darkSubDisplay}</span>
+                                  </div>
+                                )}
+                                {isMono ? filters.map(f => (
+                                  <div key={`flat-${f}`} className="filter-table-row cal-row">
+                                    <span className="ft-filter" style={{ color: FILTER_COLORS[f] || '#666' }}>Flats ({f})</span>
+                                    <span>25</span>
+                                    <span>—</span>
+                                  </div>
+                                )) : (
+                                  <div className="filter-table-row cal-row">
+                                    <span className="ft-filter">Flats</span>
+                                    <span>25</span>
+                                    <span>—</span>
+                                  </div>
+                                )}
+                                <div className="filter-table-row cal-row">
+                                  <span className="ft-filter">Bias</span>
+                                  <span>50</span>
+                                  <span>—</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })()}
+
                         {/* Section 4: Exposure Summary */}
                         <div className="detail-section">
                           <div className="detail-section-title">Exposure Summary</div>
