@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless'
 import { withAuth } from '../../_utils/auth.js'
-import { scoreTarget, getFilterSequence, getImagingWindow, getTransitTime, needsHDR, getAltAz } from '../../../src/targetEngine.js'
+import { scoreTarget, getFilterSequence, getSubExposure, getImagingWindow, getTransitTime, needsHDR, getAltAz } from '../../../src/targetEngine.js'
 
 function formatTimeOffset(date, offsetMinutes) {
   if (!date) return null
@@ -103,21 +103,24 @@ async function handler(req, res, userId) {
         end: formatTimeOffset(imagingWindow.end, utcOffset),
         durationMinutes: imagingWindow.duration_minutes || 0
       } : null,
-      filterSequence: (filterSeq || []).map(b => ({
-        filter: b.filter,
-        start: b.start,
-        end: b.end,
-        subs: b.estimatedSubs || 0,
-        subLength: b.subLength || 300,
-        totalMinutes: b.estimatedSubs ? Math.round(b.estimatedSubs * b.subLength / 60) : 0
-      })),
-      exposureSummary: {
-        totalMinutes: (filterSeq || []).reduce((s, b) => s + (b.estimatedSubs ? Math.round(b.estimatedSubs * b.subLength / 60) : 0), 0),
-        perFilter: (filterSeq || []).map(b => ({
+      filterSequence: (filterSeq || []).map(b => {
+        const recSub = getSubExposure(b.filter, null, target.magnitude) ?? b.subLength ?? 300
+        return {
           filter: b.filter,
-          minutes: b.estimatedSubs ? Math.round(b.estimatedSubs * b.subLength / 60) : 0
-        }))
-      },
+          start: b.start,
+          end: b.end,
+          subs: b.estimatedSubs || 0,
+          subLength: recSub,
+          totalMinutes: b.estimatedSubs ? Math.round(b.estimatedSubs * recSub / 60) : 0
+        }
+      }),
+      exposureSummary: (() => {
+        const mapped = (filterSeq || []).map(b => {
+          const recSub = getSubExposure(b.filter, null, target.magnitude) ?? b.subLength ?? 300
+          return { filter: b.filter, minutes: b.estimatedSubs ? Math.round(b.estimatedSubs * recSub / 60) : 0 }
+        })
+        return { totalMinutes: mapped.reduce((s, m) => s + m.minutes, 0), perFilter: mapped }
+      })(),
       needsHDR: hdr,
       altitudePoints: computeAltitudePoints(ra, dec, lat, lng, imagingWindow, utcOffset)
     }

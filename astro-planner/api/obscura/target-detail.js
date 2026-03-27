@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { targetId, lat, lng, date, trainId, utcOffset } = req.query
+  const { targetId, lat, lng, date, trainId, utcOffset, moonIllum, moonSep, windMph, bortle } = req.query
 
   if (!targetId || !lat || !lng) {
     return res.status(400).json({ error: 'targetId, lat, and lng are required' })
@@ -24,6 +24,13 @@ export default async function handler(req, res) {
   const longitude = parseFloat(lng)
   const targetDate = date ? new Date(date) : new Date()
   const utcOffsetMinutes = utcOffset ? parseInt(utcOffset) : Math.round(longitude / 15) * 60
+
+  // Build conditions for getSubExposure
+  const conditions = {}
+  if (bortle != null && bortle !== '') conditions.bortleIndex = parseFloat(bortle)
+  if (moonIllum != null && moonIllum !== '') conditions.moonIllumination = parseFloat(moonIllum)
+  if (moonSep != null && moonSep !== '') conditions.moonSeparationDeg = parseFloat(moonSep)
+  if (windMph != null && windMph !== '') conditions.windSpeedMph = parseFloat(windMph)
 
   try {
     const sql = neon(process.env.DATABASE_URL)
@@ -40,6 +47,7 @@ export default async function handler(req, res) {
       imagingTrains = await sql`
         SELECT p.id, p.profile_name,
           c.sensor_type,
+          c.read_noise_e,
           (o.focal_length_mm * COALESCE(a.reduction_factor, 1.0)) AS effective_fl,
           ((c.pixel_size_um * 206.265) /
             (o.focal_length_mm * COALESCE(a.reduction_factor, 1.0)))
@@ -86,13 +94,17 @@ export default async function handler(req, res) {
       target, scoreResult.imagingWindow, scoreResult.transitTime, cameraType, utcOffsetMinutes
     )
 
-    // Sub exposures for each filter
-    const subExposures = filterSequence.map(block => ({
-      ...block,
-      recommendedSubExposure: getSubExposure(
-        block.filter, selectedTrain, target.magnitude
-      )
-    }))
+    // Sub exposures for each filter — pass full train object and conditions
+    const subExposures = filterSequence.map(block => {
+      const sub = getSubExposure(block.filter, selectedTrain, target.magnitude, conditions)
+      return {
+        ...block,
+        recommendedSubExposure: sub
+      }
+    })
+
+    // Check if wind is too high (any sub returned null)
+    const windTooHigh = subExposures.some(b => b.recommendedSubExposure === null)
 
     // HDR check
     const hdr = needsHDR(target)
@@ -151,6 +163,7 @@ export default async function handler(req, res) {
       bestTrainName: scoreResult.bestTrainName,
       filterSequence: subExposures,
       hdr,
+      windTooHigh,
       weekSchedule,
       altitudeCurve,
       cameraType,

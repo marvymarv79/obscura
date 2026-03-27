@@ -157,7 +157,7 @@ function getPreviewUrl(targetId, raDeg, decDeg) {
   return null
 }
 
-export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated, onAddToPlan, utcOffsetMinutes, post, watchedTargetIds, onWatchlistAdd }) {
+export default function Targets({ coords, moon, selectedTargets, onSelectTarget, locationName, onPlanCreated, onAddToPlan, utcOffsetMinutes, post, watchedTargetIds, onWatchlistAdd, weather }) {
   const [targets, setTargets] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -228,6 +228,9 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
       })
       if (target.bestTrainId) params.set('trainId', target.bestTrainId)
       if (utcOffsetMinutes != null) params.set('utcOffset', utcOffsetMinutes)
+      if (moon?.illumination != null) params.set('moonIllum', moon.illumination)
+      if (target.moonSeparation != null) params.set('moonSep', target.moonSeparation)
+      if (weather?.windSpeed != null) params.set('windMph', (weather.windSpeed * 2.237).toFixed(1))
       const resp = await fetch(`/api/obscura/target-detail?${params}`)
       if (!resp.ok) throw new Error('Failed to fetch detail')
       const data = await resp.json()
@@ -477,23 +480,31 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                         {detailData.cameraType === 'Mono' && detailData.filterSequence && detailData.filterSequence.length > 0 && (
                           <div className="detail-section">
                             <div className="detail-section-title">Filter Sequence</div>
+                            {detailData.windTooHigh && (
+                              <div className="wind-warning">Wind too high for imaging</div>
+                            )}
                             <div className="filter-table">
                               <div className="filter-table-header">
                                 <span>Filter</span><span>Start</span><span>End</span>
                                 <span>Subs</span><span>Sub ″</span><span>Total</span>
                               </div>
-                              {detailData.filterSequence.map((block, i) => (
-                                <div key={i} className="filter-table-row">
-                                  <span className="ft-filter" style={{ color: FILTER_COLORS[block.filter] || '#666' }}>
-                                    {block.filter}
-                                  </span>
-                                  <span>{block.start}</span>
-                                  <span>{block.end}</span>
-                                  <span>{block.estimatedSubs}</span>
-                                  <span>{block.recommendedSubExposure || block.subLength}s</span>
-                                  <span>{Math.round(block.estimatedSubs * (block.recommendedSubExposure || block.subLength) / 60)}m</span>
-                                </div>
-                              ))}
+                              {detailData.filterSequence.map((block, i) => {
+                                const sub = block.recommendedSubExposure
+                                const subDisplay = sub != null ? `${sub}s` : '—'
+                                const totalMin = sub != null ? Math.round(block.estimatedSubs * sub / 60) : '—'
+                                return (
+                                  <div key={i} className="filter-table-row">
+                                    <span className="ft-filter" style={{ color: FILTER_COLORS[block.filter] || '#666' }}>
+                                      {block.filter}
+                                    </span>
+                                    <span>{block.start}</span>
+                                    <span>{block.end}</span>
+                                    <span>{block.estimatedSubs}</span>
+                                    <span>{subDisplay}</span>
+                                    <span>{totalMin}{totalMin !== '—' ? 'm' : ''}</span>
+                                  </div>
+                                )
+                              })}
                             </div>
                           </div>
                         )}
@@ -501,7 +512,10 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
                         {/* Section 4: Exposure Summary */}
                         <div className="detail-section">
                           <div className="detail-section-title">Exposure Summary</div>
-                          {detailData.filterSequence && (
+                          {detailData.windTooHigh && (
+                            <div className="wind-warning">Wind too high for imaging</div>
+                          )}
+                          {detailData.filterSequence && !detailData.windTooHigh && (
                             <div className="exposure-summary">
                               <div className="exp-total">
                                 Total integration: {Math.round(detailData.filterSequence.reduce((sum, b) =>

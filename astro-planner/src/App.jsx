@@ -768,6 +768,7 @@ function App() {
               <Targets
                 coords={coords}
                 moon={moon}
+                weather={weather}
                 selectedTargets={selectedTargets}
                 locationName={coords?.locationName || locationName || savedLocations.find(l => coords && parseFloat(l.latitude) === coords.latitude && parseFloat(l.longitude) === coords.longitude)?.name}
                 utcOffsetMinutes={astropheric?.UTCMinuteOffset != null ? -astropheric.UTCMinuteOffset : (coords ? Math.round(coords.longitude / 15) * 60 : 0)}

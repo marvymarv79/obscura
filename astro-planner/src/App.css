@@ -3911,6 +3911,15 @@ tbody tr:hover {
   color: var(--accent-ember);
   font-size: 0.75rem;
 }
+.wind-warning {
+  padding: 0.5rem;
+  background: rgba(204, 41, 54, 0.08);
+  border-left: 3px solid var(--accent-crimson);
+  border-radius: 4px;
+  color: var(--accent-crimson);
+  font-size: 0.75rem;
+  margin-bottom: 6px;
+}
 
 .add-to-plan-btn {
   padding: 0.5rem 1.2rem;
