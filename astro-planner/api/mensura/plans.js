@@ -23,15 +23,15 @@ async function handler(req, res, userId) {
       }
 
       case 'POST': {
-        const { plan_date, location_name, latitude, longitude, forecast_score, utc_offset_minutes } = req.body
+        const { plan_date, name, location_name, latitude, longitude, forecast_score, utc_offset_minutes } = req.body
 
         if (!plan_date || !location_name || latitude == null || longitude == null) {
           return res.status(400).json({ error: 'plan_date, location_name, latitude, and longitude are required' })
         }
 
         const [plan] = await sql`
-          INSERT INTO plans (user_id, plan_date, location_name, latitude, longitude, forecast_score, utc_offset_minutes)
-          VALUES (${userId}, ${plan_date}, ${location_name}, ${latitude}, ${longitude}, ${forecast_score ?? null}, ${utc_offset_minutes ?? null})
+          INSERT INTO plans (user_id, name, plan_date, location_name, latitude, longitude, forecast_score, utc_offset_minutes)
+          VALUES (${userId}, ${name ?? null}, ${plan_date}, ${location_name}, ${latitude}, ${longitude}, ${forecast_score ?? null}, ${utc_offset_minutes ?? null})
           RETURNING *
         `
 

@@ -48,6 +48,19 @@ function targetName(t) {
   return m ? `M${m} · ${ngc}` : ngc
 }
 
+function generatePlanName(targets, dateStr) {
+  const d = new Date(dateStr + 'T12:00:00')
+  const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  if (!targets || targets.length === 0) return `Session · ${datePart}`
+  const getName = (t) => {
+    const snap = t.snapshot || {}
+    return snap.commonName || t.common_name || snap.targetName || t.ngc_ic_id || snap.ngcIcId || 'Unknown'
+  }
+  if (targets.length === 1) return `${getName(targets[0])} · ${datePart}`
+  if (targets.length === 2) return `${getName(targets[0])}, ${getName(targets[1])} · ${datePart}`
+  return `${getName(targets[0])} +${targets.length - 1} more · ${datePart}`
+}
+
 // apiFetch removed — use get/post from useApi hook for authenticated calls
 // For unauthenticated calls (catalog), use plain fetch
 
@@ -68,6 +81,7 @@ export default function Mensura() {
   const [imagingTrains, setImagingTrains] = useState([])
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null)
   const [confirmDeletePlanId, setConfirmDeletePlanId] = useState(null)
+  const [showNameSuggestion, setShowNameSuggestion] = useState(false)
 
   // Catalog browser state
   const [catalogResults, setCatalogResults] = useState([])
@@ -99,9 +113,12 @@ export default function Mensura() {
   const loadPlanDetail = useCallback(async (planId) => {
     try {
       const data = await get(`/api/mensura/plans/detail?id=${planId}`)
-      setPlanDetail(data.plan || data)
-      setPlanTargets(data.targets || [])
-      setPlanName(data.plan?.name || data.name || `Session ${data.plan?.plan_date || data.plan_date || ''}`)
+      const plan = data.plan || data
+      const targets = data.targets || []
+      setPlanDetail(plan)
+      setPlanTargets(targets)
+      setPlanName(plan.name || generatePlanName(targets, plan.plan_date || ''))
+      setShowNameSuggestion(false)
     } catch (err) { console.error('Load plan detail error:', err) }
   }, [get])
 
@@ -117,6 +134,7 @@ export default function Mensura() {
       const today = new Date().toISOString().split('T')[0]
       const data = await post('/api/mensura/plans', {
           plan_date: today,
+          name: generatePlanName([], today),
           location_name: 'Home - Midland',
           latitude: 32.04,
           longitude: -102.14,
@@ -162,6 +180,18 @@ export default function Mensura() {
     } catch (err) { console.error('Edit error:', err) }
   }
 
+  // Auto-update plan name from current targets
+  const handleUpdatePlanName = async () => {
+    if (!planDetail) return
+    const newName = generatePlanName(planTargets, planDetail.plan_date || '')
+    setPlanName(newName)
+    setShowNameSuggestion(false)
+    try {
+      await post('/api/mensura/plans/update', { id: planDetail.id, name: newName })
+      await loadPlans()
+    } catch {}
+  }
+
   // Update plan name
   const handleNameBlur = async () => {
     if (!planDetail || planName === planDetail.name) return
@@ -205,6 +235,7 @@ export default function Mensura() {
     try {
       await post('/api/mensura/plan-targets', { plan_id: planDetail.id, target_id: target.id })
       await loadPlanDetail(planDetail.id)
+      setShowNameSuggestion(true)
       showToast('Target added')
     } catch (err) { console.error('Add target error:', err) }
   }
@@ -215,6 +246,7 @@ export default function Mensura() {
       await post('/api/mensura/plan-targets/delete', { id: ptId })
       setConfirmDeleteTarget(null)
       await loadPlanDetail(planDetail.id)
+      setShowNameSuggestion(true)
     } catch (err) { console.error('Remove target error:', err) }
   }
 
@@ -386,13 +418,18 @@ export default function Mensura() {
             <>
               {/* Workspace Header */}
               <div className="mw-header">
-                {isDraft ? (
-                  <input className="mw-name-input" value={planName}
-                    onChange={(e) => setPlanName(e.target.value)} onBlur={handleNameBlur}
-                    placeholder="Plan name..." />
-                ) : (
-                  <div className="mw-name-input" style={{ cursor: 'default' }}>{planName}</div>
-                )}
+                <div className="mw-name-row">
+                  {isDraft ? (
+                    <input className="mw-name-input" value={planName}
+                      onChange={(e) => { setPlanName(e.target.value); setShowNameSuggestion(false) }} onBlur={handleNameBlur}
+                      placeholder="Plan name..." />
+                  ) : (
+                    <div className="mw-name-input" style={{ cursor: 'default' }}>{planName}</div>
+                  )}
+                  {isDraft && showNameSuggestion && (
+                    <button className="mw-update-name-btn" onClick={(e) => { e.stopPropagation(); handleUpdatePlanName() }}>↺ Update name</button>
+                  )}
+                </div>
                 <div className="mw-meta">
                   <span>{formatDate(planDetail.plan_date)}</span>
                   <span>{planDetail.location_name}</span>

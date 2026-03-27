@@ -91,12 +91,20 @@
 .mw-header {
   padding: 20px 24px 16px; border-bottom: 1px solid var(--border-default);
 }
+.mw-name-row { display: flex; align-items: center; gap: 10px; }
 .mw-name-input {
   background: transparent; border: none; color: var(--text-primary);
   font-size: 18px; font-weight: 600; width: 100%; outline: none;
   border-bottom: 1px solid transparent; padding: 0 0 4px;
+  flex: 1; min-width: 0;
 }
 .mw-name-input:focus { border-bottom-color: #7c3aed; }
+.mw-update-name-btn {
+  background: none; border: none; color: #7c3aed; cursor: pointer;
+  font-size: 12px; white-space: nowrap; padding: 2px 6px; border-radius: 4px;
+  transition: background 0.15s;
+}
+.mw-update-name-btn:hover { background: rgba(124, 58, 237, 0.12); }
 .mw-meta {
   display: flex; align-items: center; gap: 12px; margin-top: 6px;
   color: var(--text-muted); font-size: 12px;

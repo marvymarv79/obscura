@@ -170,6 +170,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
   const [detailData, setDetailData] = useState(null)
   const [imagingTrains, setImagingTrains] = useState([])
   const [toast, setToast] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     fetch('/api/apertura/profiles')
@@ -254,7 +255,7 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
     const tonight = new Date().toISOString().split('T')[0]
     try {
       const planData = {
-        name: `Session ${tonight}`,
+        name: `${target.common_name || target.ngc_ic_id} · ${new Date(tonight + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
         planDate: tonight,
         locationName: locationName || 'Unknown',
         latitude: coords.latitude,
@@ -288,6 +289,16 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
     return 0
   })
 
+  const filteredTargets = searchTerm.trim() ? sortedTargets.filter(t => {
+    const q = searchTerm.trim().toLowerCase()
+    const typeLabel = TYPE_LABELS[t.object_type] || t.object_type || ''
+    return (t.ngc_ic_id || '').toLowerCase().includes(q)
+      || (t.common_name || '').toLowerCase().includes(q)
+      || (t.object_type || '').toLowerCase().includes(q)
+      || typeLabel.toLowerCase().includes(q)
+      || (t.messier_number && `m${t.messier_number}`.includes(q))
+  }) : sortedTargets
+
   if (!coords) {
     return (
       <div className="targets-empty">
@@ -298,6 +309,12 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
 
   return (
     <div className="targets-tab">
+      {/* Search */}
+      <div className="targets-search">
+        <input type="text" placeholder="Search by name, catalog number, type..."
+          value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+      </div>
+
       {/* Header */}
       <div className="targets-tab-header">
         <h3>Targets</h3>
@@ -349,16 +366,16 @@ export default function Targets({ coords, moon, selectedTargets, onSelectTarget,
       )}
 
       {/* Empty */}
-      {!loading && !error && sortedTargets.length === 0 && (
+      {!loading && !error && filteredTargets.length === 0 && (
         <div className="targets-empty">
-          <p>No targets meet the current criteria. Try adjusting the filters or selecting a different date.</p>
+          <p>{searchTerm.trim() ? 'No targets match your search.' : 'No targets meet the current criteria. Try adjusting the filters or selecting a different date.'}</p>
         </div>
       )}
 
       {/* Target cards */}
-      {!loading && sortedTargets.length > 0 && (
+      {!loading && filteredTargets.length > 0 && (
         <div className="targets-grid-new">
-          {sortedTargets.map(target => {
+          {filteredTargets.map(target => {
             const isExpanded = detailTarget?.id === target.id
             return (
               <div key={target.id}>
