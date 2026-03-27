@@ -86,6 +86,20 @@ export default function Mensura() {
   const [showNameSuggestion, setShowNameSuggestion] = useState(false)
   const [editedWindows, setEditedWindows] = useState({}) // { [ptId]: { start, end } }
 
+  // Drag-to-reorder state
+  const [dragIdx, setDragIdx] = useState(null)
+  const [dragOverIdx, setDragOverIdx] = useState(null)
+  // Window time validation errors { [ptId]: 'start'|'end' }
+  const [timeErrors, setTimeErrors] = useState({})
+
+  // Chat panel state
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatPlanId, setChatPlanId] = useState(null)
+  const [chatMessages, setChatMessages] = useState([]) // { role, content }
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatEndRef = useRef(null)
+
   // Catalog browser state
   const [catalogResults, setCatalogResults] = useState([])
   const [catalogSearch, setCatalogSearch] = useState('')
@@ -318,34 +332,49 @@ export default function Mensura() {
     } catch (err) { console.error('Remove target error:', err) }
   }
 
-  // Compute duration from HH:MM strings (handles cross-midnight)
+  // Compute duration from time strings (handles HH:MM or HHMM, cross-midnight)
   function computeWindowDuration(startStr, endStr) {
     if (!startStr || !endStr) return null
-    const [sh, sm] = startStr.split(':').map(Number)
-    const [eh, em] = endStr.split(':').map(Number)
+    const parseTime = (s) => {
+      const clean = s.replace(':', '')
+      return [parseInt(clean.slice(0, 2), 10), parseInt(clean.slice(2), 10)]
+    }
+    const [sh, sm] = parseTime(startStr)
+    const [eh, em] = parseTime(endStr)
     let startMin = sh * 60 + sm
     let endMin = eh * 60 + em
     if (endMin <= startMin) endMin += 1440 // cross midnight
     return endMin - startMin
   }
 
-  // Validate and normalize HH:MM input, round to nearest 5 minutes
+  // Validate and normalize HHMM input (no colon), round to nearest 5 minutes
+  // Returns { hhmm, hhcolon } or null if invalid
   function normalizeTime(raw) {
     if (!raw) return null
-    const cleaned = raw.replace(/[^0-9:]/g, '')
-    const match = cleaned.match(/^(\d{1,2}):?(\d{2})$/)
+    const cleaned = raw.replace(/[^0-9]/g, '')
+    // Accept 3 or 4 digits: "830" → "0830", "2135" → "2135"
+    const match = cleaned.match(/^(\d{1,2})(\d{2})$/)
     if (!match) return null
     let h = parseInt(match[1], 10)
     let m = parseInt(match[2], 10)
     if (h > 23 || m > 59) return null
     m = Math.round(m / 5) * 5
     if (m >= 60) { m = 0; h = (h + 1) % 24 }
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+    const hh = String(h).padStart(2, '0')
+    const mm = String(m).padStart(2, '0')
+    return { hhmm: `${hh}${mm}`, hhcolon: `${hh}:${mm}` }
   }
 
-  // Recompute target
+  // Convert HH:MM or HHMM string to display format (HHMM)
+  function toHHMM(timeStr) {
+    if (!timeStr) return ''
+    return timeStr.replace(':', '')
+  }
+
+  // Recompute target — sends HH:MM format to API (DB TIME type)
   const handleRecompute = async (pt) => {
     const edited = editedWindows[pt.id]
+    // Ensure HH:MM format for API — editedWindows stores HH:MM already
     const ws = edited?.start || pt.window_start
     const we = edited?.end || pt.window_end
     try {
@@ -394,6 +423,82 @@ export default function Mensura() {
 
   // Toast
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000) }
+
+  // Drag-to-reorder handlers
+  const handleDragStart = (e, idx) => {
+    setDragIdx(idx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', idx)
+  }
+  const handleDragOver = (e, idx) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverIdx(idx)
+  }
+  const handleDragEnd = () => {
+    setDragIdx(null)
+    setDragOverIdx(null)
+  }
+  const handleDrop = async (e, toIdx) => {
+    e.preventDefault()
+    const fromIdx = dragIdx
+    setDragIdx(null)
+    setDragOverIdx(null)
+    if (fromIdx === null || fromIdx === toIdx) return
+    // Optimistic reorder
+    const reordered = [...planTargets]
+    const [moved] = reordered.splice(fromIdx, 1)
+    reordered.splice(toIdx, 0, moved)
+    setPlanTargets(reordered)
+    // Persist
+    try {
+      await post('/api/mensura/plan-targets/reorder', {
+        plan_id: planDetail.id,
+        ordered_ids: reordered.map(pt => pt.id)
+      })
+    } catch (err) {
+      console.error('Reorder error:', err)
+      // Reload on failure to restore server state
+      await loadPlanDetail(planDetail.id)
+    }
+  }
+
+  // Chat panel handlers
+  const openChat = (planId) => {
+    if (chatPlanId !== planId) {
+      setChatMessages([])
+      setChatInput('')
+    }
+    setChatPlanId(planId)
+    setChatOpen(true)
+  }
+  const closeChat = () => { setChatOpen(false) }
+
+  const sendChatMessage = async () => {
+    const msg = chatInput.trim()
+    if (!msg || chatLoading || !chatPlanId) return
+    const newMessages = [...chatMessages, { role: 'user', content: msg }]
+    setChatMessages(newMessages)
+    setChatInput('')
+    setChatLoading(true)
+    try {
+      const res = await post('/api/mensura/chat', {
+        planId: chatPlanId,
+        messages: chatMessages,
+        userMessage: msg
+      })
+      setChatMessages(prev => [...prev, { role: 'assistant', content: res.reply }])
+    } catch (err) {
+      console.error('Chat error:', err)
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }])
+    }
+    setChatLoading(false)
+  }
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages, chatLoading])
 
   // Overlap detection
   const getOverlaps = () => {
@@ -475,6 +580,8 @@ export default function Mensura() {
                           {plan.forecast_score}
                         </span>
                       )}
+                      <button className="ms-chat-btn"
+                        onClick={(e) => { e.stopPropagation(); selectPlan(plan); openChat(plan.id) }}>Chat</button>
                       {plan.status !== 'draft' && plan.status !== 'complete' && (
                         <button className="ms-complete-btn"
                           onClick={(e) => { e.stopPropagation(); handleComplete(plan.id) }}>Mark Complete</button>
@@ -508,6 +615,8 @@ export default function Mensura() {
                         <div className="ms-plan-location">{plan.location_name}</div>
                         <div className="ms-plan-footer">
                           <span className="ms-complete-pill">✓ Complete</span>
+                          <button className="ms-chat-btn"
+                            onClick={(e) => { e.stopPropagation(); selectPlan(plan); openChat(plan.id) }}>Chat</button>
                           {plan.completed_at && (
                             <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
                               {formatDate(plan.completed_at)}
@@ -597,7 +706,13 @@ export default function Mensura() {
                   const tName = targetName(pt)
 
                   return (
-                    <div key={pt.id} className={`mw-target ${!isDraft ? 'readonly' : ''}`}>
+                    <div key={pt.id}
+                      className={`mw-target ${!isDraft ? 'readonly' : ''} ${dragIdx === idx ? 'mw-dragging' : ''} ${dragOverIdx === idx ? 'mw-drag-over' : ''}`}
+                      draggable={isDraft}
+                      onDragStart={isDraft ? (e) => handleDragStart(e, idx) : undefined}
+                      onDragOver={isDraft ? (e) => handleDragOver(e, idx) : undefined}
+                      onDragEnd={isDraft ? handleDragEnd : undefined}
+                      onDrop={isDraft ? (e) => handleDrop(e, idx) : undefined}>
                       <div className="mw-target-top" onClick={() => setExpandedTarget(isExpanded ? null : pt.id)}>
                         {isDraft && <span className="mw-drag">⠿</span>}
                         <img className="mw-target-thumb" loading="lazy"
@@ -654,44 +769,73 @@ export default function Mensura() {
                               ? computeWindowDuration(curStart, curEnd)
                               : snap.imagingWindow.durationMinutes
                             const hasEdits = !!edited
+                            const startErr = timeErrors[pt.id] === 'start'
+                            const endErr = timeErrors[pt.id] === 'end'
                             return (
                               <div className="mw-window-row">
                                 <span>Window:</span>
                                 {isDraft ? (
                                   <>
-                                    <input type="text" className="mw-time-input" placeholder="HH:MM"
-                                      defaultValue={curStart}
-                                      key={`start-${pt.id}-${curStart}-${!hasEdits}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      onBlur={(e) => {
-                                        const val = normalizeTime(e.target.value)
-                                        if (val) {
-                                          e.target.value = val
-                                          setEditedWindows(prev => ({ ...prev, [pt.id]: { ...prev[pt.id], start: val, end: prev[pt.id]?.end ?? curEnd } }))
-                                        } else { e.target.value = curStart }
-                                      }}
-                                      onKeyDown={(e) => { if (e.key === 'Enter') { e.target.blur(); handleRecompute(pt) } }} />
-                                    <span>—</span>
-                                    <input type="text" className="mw-time-input" placeholder="HH:MM"
-                                      defaultValue={curEnd}
-                                      key={`end-${pt.id}-${curEnd}-${!hasEdits}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      onBlur={(e) => {
-                                        const val = normalizeTime(e.target.value)
-                                        if (val) {
-                                          e.target.value = val
-                                          setEditedWindows(prev => ({ ...prev, [pt.id]: { start: prev[pt.id]?.start ?? curStart, end: val } }))
-                                        } else { e.target.value = curEnd }
-                                      }}
-                                      onKeyDown={(e) => { if (e.key === 'Enter') { e.target.blur(); handleRecompute(pt) } }} />
-                                    {hasEdits && (
-                                      <button className="mw-recompute-btn mw-recompute-inline" onClick={(e) => { e.stopPropagation(); handleRecompute(pt) }}>
-                                        Recompute
-                                      </button>
-                                    )}
+                                    <div className="mw-time-wrap">
+                                      <input type="text" className={`mw-time-input ${startErr ? 'mw-time-error' : ''}`} placeholder="HHMM"
+                                        defaultValue={toHHMM(curStart)}
+                                        key={`start-${pt.id}-${curStart}-${!hasEdits}`}
+                                        maxLength={4}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onBlur={(e) => {
+                                          const parsed = normalizeTime(e.target.value)
+                                          if (parsed) {
+                                            e.target.value = parsed.hhmm
+                                            setTimeErrors(prev => { const n = { ...prev }; delete n[pt.id]; return n })
+                                            const newStart = parsed.hhcolon
+                                            const newEnd = editedWindows[pt.id]?.end ?? curEnd
+                                            setEditedWindows(prev => ({ ...prev, [pt.id]: { ...prev[pt.id], start: newStart, end: prev[pt.id]?.end ?? curEnd } }))
+                                            // Auto-persist
+                                            post('/api/mensura/plan-targets/update', { id: pt.id, window_start: newStart, window_end: newEnd, imaging_train_id: pt.imaging_train_id })
+                                              .then(() => {
+                                                setEditedWindows(prev => { const next = { ...prev }; delete next[pt.id]; return next })
+                                                loadPlanDetail(planDetail.id)
+                                              })
+                                              .catch(err => console.error('Window save error:', err))
+                                          } else if (e.target.value) {
+                                            setTimeErrors(prev => ({ ...prev, [pt.id]: 'start' }))
+                                          }
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
+                                      {startErr && <span className="mw-time-err-msg">Invalid (HHMM)</span>}
+                                    </div>
+                                    <span>–</span>
+                                    <div className="mw-time-wrap">
+                                      <input type="text" className={`mw-time-input ${endErr ? 'mw-time-error' : ''}`} placeholder="HHMM"
+                                        defaultValue={toHHMM(curEnd)}
+                                        key={`end-${pt.id}-${curEnd}-${!hasEdits}`}
+                                        maxLength={4}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onBlur={(e) => {
+                                          const parsed = normalizeTime(e.target.value)
+                                          if (parsed) {
+                                            e.target.value = parsed.hhmm
+                                            setTimeErrors(prev => { const n = { ...prev }; delete n[pt.id]; return n })
+                                            const newEnd = parsed.hhcolon
+                                            const newStart = editedWindows[pt.id]?.start ?? curStart
+                                            setEditedWindows(prev => ({ ...prev, [pt.id]: { start: prev[pt.id]?.start ?? curStart, end: newEnd } }))
+                                            // Auto-persist
+                                            post('/api/mensura/plan-targets/update', { id: pt.id, window_start: newStart, window_end: newEnd, imaging_train_id: pt.imaging_train_id })
+                                              .then(() => {
+                                                setEditedWindows(prev => { const next = { ...prev }; delete next[pt.id]; return next })
+                                                loadPlanDetail(planDetail.id)
+                                              })
+                                              .catch(err => console.error('Window save error:', err))
+                                          } else if (e.target.value) {
+                                            setTimeErrors(prev => ({ ...prev, [pt.id]: 'end' }))
+                                          }
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
+                                      {endErr && <span className="mw-time-err-msg">Invalid (HHMM)</span>}
+                                    </div>
                                   </>
                                 ) : (
-                                  <span>{snap.imagingWindow.start} — {snap.imagingWindow.end}</span>
+                                  <span>{toHHMM(snap.imagingWindow.start)}–{toHHMM(snap.imagingWindow.end)}</span>
                                 )}
                                 <span>({formatDuration(durMin)})</span>
                               </div>
@@ -1067,6 +1211,42 @@ export default function Mensura() {
                     </div>
                   </>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Chat Panel */}
+          {chatOpen && (
+            <div className="mw-chat-panel">
+              <div className="mw-chat-header">
+                <span className="mw-chat-title">{planName || 'Plan Chat'}</span>
+                <button className="mw-chat-close" onClick={(e) => { e.stopPropagation(); closeChat() }}>×</button>
+              </div>
+              <div className="mw-chat-messages">
+                {chatMessages.length === 0 && !chatLoading && (
+                  <div className="mw-chat-empty">Ask about your plan — targets, filters, exposure strategy, conditions...</div>
+                )}
+                {chatMessages.map((m, i) => (
+                  <div key={i} className={`mw-chat-msg ${m.role}`}>
+                    <div className="mw-chat-bubble">{m.content}</div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="mw-chat-msg assistant">
+                    <div className="mw-chat-bubble mw-chat-typing">
+                      <span /><span /><span />
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+              <div className="mw-chat-input-row">
+                <input className="mw-chat-input" placeholder="Ask about this plan..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage() } }} />
+                <button className="mw-chat-send" onClick={(e) => { e.stopPropagation(); sendChatMessage() }}
+                  disabled={chatLoading || !chatInput.trim()}>Send</button>
               </div>
             </div>
           )}
