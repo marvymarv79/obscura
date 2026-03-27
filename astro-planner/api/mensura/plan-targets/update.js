@@ -116,6 +116,8 @@ async function handler(req, res, userId) {
     }
 
     const filterSeq = getFilterSequence(target, imagingWindow, transit, cameraType === 'Mono' ? 'mono' : 'OSC', utcOffset)
+    const distinctFilters = [...new Set((filterSeq || []).map(b => b.filter))]
+    const calibrationWindowMinutes = Math.ceil(distinctFilters.length * 2.5) + 10
 
     const snapshot = {
       targetId: target.id,
@@ -159,6 +161,7 @@ async function handler(req, res, userId) {
       })(),
       needsHDR: hdr,
       cameraType,
+      calibrationWindowMinutes,
       altitudePoints: computeAltitudePoints(ra, dec, lat, lng, imagingWindow, utcOffset)
     }
 

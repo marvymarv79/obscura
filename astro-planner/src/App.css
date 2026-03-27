@@ -3908,6 +3908,17 @@ tbody tr:hover {
   grid-template-columns: 100px 60px 80px;
 }
 
+/* Calibration window callout */
+.cal-window-callout {
+  font-size: 0.75rem;
+  color: var(--accent-violet);
+  padding: 0.4rem 0.6rem;
+  background: rgba(124, 58, 237, 0.08);
+  border-left: 3px solid var(--accent-violet);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
 /* Exposure Summary */
 .exposure-summary {
   font-size: 0.8rem;

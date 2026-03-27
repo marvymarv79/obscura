@@ -72,6 +72,8 @@ async function handler(req, res, userId) {
     const scoreResult = scoreTarget(target, location, planDate, null, [])
     const hdr = needsHDR(target)
     const filterSeq = getFilterSequence(target, imagingWindow, transit, 'mono', utcOffset)
+    const distinctFilters = [...new Set((filterSeq || []).map(b => b.filter))]
+    const calibrationWindowMinutes = Math.ceil(distinctFilters.length * 2.5) + 10
 
     const snapshot = {
       targetId: target.id,
@@ -114,6 +116,7 @@ async function handler(req, res, userId) {
         return { totalMinutes: mapped.reduce((s, m) => s + m.minutes, 0), perFilter: mapped }
       })(),
       needsHDR: hdr,
+      calibrationWindowMinutes,
       altitudePoints: computeAltitudePoints(ra, dec, lat, lng, imagingWindow, utcOffset)
     }
 

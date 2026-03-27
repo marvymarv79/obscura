@@ -689,6 +689,13 @@ export default function Mensura() {
                             </div>
                           )}
 
+                          {/* Calibration window callout */}
+                          {snap.filterSequence && snap.filterSequence.length > 0 && snap.calibrationWindowMinutes > 0 && (
+                            <div className="cal-window-callout">
+                              Imaging ends at {snap.filterSequence[snap.filterSequence.length - 1]?.end || '—'} · Calibration window: {snap.calibrationWindowMinutes} min
+                            </div>
+                          )}
+
                           {/* Calibration frames */}
                           {snap.filterSequence && snap.filterSequence.length > 0 && (() => {
                             const blocks = snap.filterSequence
