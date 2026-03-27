@@ -12,6 +12,10 @@ Stack: Vite + React, React Router, Tailwind, Clerk auth, Neon (PostgreSQL), Verc
 **Repo:** github.com/marvymarv79/obscura
 **Live:** marvymarv.xyz / obscura-pi.vercel.app
 ---
+## Development Environment
+**Preview limitations:** Clerk auth does not function in the local dev preview — the app renders a blank screen for authenticated routes. Do not attempt to verify UI fixes visually in preview. Instead, verify correctness by reading component code and tracing data flow, check API/query logic directly in serverless function files, and use console.log instrumentation where helpful.
+
+---
 ## Workflow
 This project is built by passing prompts to Claude Code. Claude Code implements changes, commits, and deploys via Vercel CI. Regression testing is run via a Cowork skill after significant changes.
 **Before writing any code:**

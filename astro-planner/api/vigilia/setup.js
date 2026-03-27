@@ -19,6 +19,7 @@ export default async function handler(req, res) {
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
         notes TEXT,
+        is_protected BOOLEAN DEFAULT false,
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `
