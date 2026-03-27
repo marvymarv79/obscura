@@ -82,6 +82,7 @@ export default function Mensura() {
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null)
   const [confirmDeletePlanId, setConfirmDeletePlanId] = useState(null)
   const [showNameSuggestion, setShowNameSuggestion] = useState(false)
+  const [editedWindows, setEditedWindows] = useState({}) // { [ptId]: { start, end } }
 
   // Catalog browser state
   const [catalogResults, setCatalogResults] = useState([])
@@ -250,10 +251,35 @@ export default function Mensura() {
     } catch (err) { console.error('Remove target error:', err) }
   }
 
+  // Compute duration from HH:MM strings (handles cross-midnight)
+  function computeWindowDuration(startStr, endStr) {
+    if (!startStr || !endStr) return null
+    const [sh, sm] = startStr.split(':').map(Number)
+    const [eh, em] = endStr.split(':').map(Number)
+    let startMin = sh * 60 + sm
+    let endMin = eh * 60 + em
+    if (endMin <= startMin) endMin += 1440 // cross midnight
+    return endMin - startMin
+  }
+
+  // Round minutes to nearest 5-minute step
+  function roundTo5(timeStr) {
+    if (!timeStr) return timeStr
+    const [h, m] = timeStr.split(':').map(Number)
+    const rounded = Math.round(m / 5) * 5
+    const finalM = rounded % 60
+    const finalH = (h + Math.floor(rounded / 60)) % 24
+    return `${String(finalH).padStart(2, '0')}:${String(finalM).padStart(2, '0')}`
+  }
+
   // Recompute target
   const handleRecompute = async (pt) => {
+    const edited = editedWindows[pt.id]
+    const ws = edited?.start || pt.window_start
+    const we = edited?.end || pt.window_end
     try {
-      await post('/api/mensura/plan-targets/update', { id: pt.id, window_start: pt.window_start, window_end: pt.window_end, imaging_train_id: pt.imaging_train_id })
+      await post('/api/mensura/plan-targets/update', { id: pt.id, window_start: ws, window_end: we, imaging_train_id: pt.imaging_train_id })
+      setEditedWindows(prev => { const next = { ...prev }; delete next[pt.id]; return next })
       await loadPlanDetail(planDetail.id)
       showToast('Recomputed')
     } catch (err) { console.error('Recompute error:', err) }
@@ -518,27 +544,51 @@ export default function Mensura() {
                           </div>
 
                           {/* Imaging window */}
-                          {snap.imagingWindow && (
-                            <div className="mw-window-row">
-                              <span>Window:</span>
-                              {isDraft ? (
-                                <>
-                                  <input type="time" className="mw-time-input"
-                                    value={pt.window_start || snap.windowStart || snap.imagingWindow.start || ''}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={() => {}} />
-                                  <span>—</span>
-                                  <input type="time" className="mw-time-input"
-                                    value={pt.window_end || snap.windowEnd || snap.imagingWindow.end || ''}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={() => {}} />
-                                </>
-                              ) : (
-                                <span>{snap.imagingWindow.start} — {snap.imagingWindow.end}</span>
-                              )}
-                              <span>({formatDuration(snap.imagingWindow.durationMinutes)})</span>
-                            </div>
-                          )}
+                          {snap.imagingWindow && (() => {
+                            const edited = editedWindows[pt.id]
+                            const curStart = edited?.start ?? pt.window_start ?? snap.imagingWindow.start ?? ''
+                            const curEnd = edited?.end ?? pt.window_end ?? snap.imagingWindow.end ?? ''
+                            const durMin = edited
+                              ? computeWindowDuration(curStart, curEnd)
+                              : snap.imagingWindow.durationMinutes
+                            const hasEdits = !!edited
+                            return (
+                              <div className="mw-window-row">
+                                <span>Window:</span>
+                                {isDraft ? (
+                                  <>
+                                    <input type="time" className="mw-time-input" step="300"
+                                      value={curStart}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => {
+                                        e.stopPropagation()
+                                        const val = roundTo5(e.target.value)
+                                        setEditedWindows(prev => ({ ...prev, [pt.id]: { ...prev[pt.id], start: val, end: prev[pt.id]?.end ?? curEnd } }))
+                                      }}
+                                      onKeyDown={(e) => { if (e.key === 'Enter') { e.target.blur(); handleRecompute(pt) } }} />
+                                    <span>—</span>
+                                    <input type="time" className="mw-time-input" step="300"
+                                      value={curEnd}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => {
+                                        e.stopPropagation()
+                                        const val = roundTo5(e.target.value)
+                                        setEditedWindows(prev => ({ ...prev, [pt.id]: { start: prev[pt.id]?.start ?? curStart, end: val } }))
+                                      }}
+                                      onKeyDown={(e) => { if (e.key === 'Enter') { e.target.blur(); handleRecompute(pt) } }} />
+                                    {hasEdits && (
+                                      <button className="mw-recompute-btn mw-recompute-inline" onClick={(e) => { e.stopPropagation(); handleRecompute(pt) }}>
+                                        Recompute
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span>{snap.imagingWindow.start} — {snap.imagingWindow.end}</span>
+                                )}
+                                <span>({formatDuration(durMin)})</span>
+                              </div>
+                            )
+                          })()}
 
                           {/* Transit */}
                           {snap.transitTime && (

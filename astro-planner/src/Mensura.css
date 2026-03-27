@@ -207,6 +207,7 @@
   font-size: 10px; cursor: pointer;
 }
 .mw-recompute-btn:hover { border-color: var(--text-dim); }
+.mw-recompute-inline { margin-left: 2px; }
 .mw-ft-table { font-size: 11px; width: 100%; }
 .mw-ft-head {
   display: grid; grid-template-columns: 50px 52px 52px 40px 52px 44px;

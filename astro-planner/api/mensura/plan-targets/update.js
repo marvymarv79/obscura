@@ -75,10 +75,31 @@ async function handler(req, res, userId) {
     const ra = parseFloat(target.ra_deg)
     const dec = parseFloat(target.dec_deg)
 
-    const imagingWindow = getImagingWindow(ra, dec, lat, lng, planDate, 25)
+    const astroWindow = getImagingWindow(ra, dec, lat, lng, planDate, 25)
     const transit = getTransitTime(ra, lat, lng, planDate)
     const scoreResult = scoreTarget(target, location, planDate, null, [])
     const hdr = needsHDR(target)
+
+    // Use user-supplied window times if present, else fall back to astro window
+    let imagingWindow = astroWindow
+    const userStart = updated.window_start
+    const userEnd = updated.window_end
+    if (userStart && userEnd) {
+      const [sh, sm] = userStart.split(':').map(Number)
+      const [eh, em] = userEnd.split(':').map(Number)
+      const baseDate = new Date(planDate)
+      // Start time: if before 12:00, assume next day (post-midnight)
+      const startDate = new Date(baseDate)
+      startDate.setUTCHours(sh + Math.round(utcOffset / 60), sm + (utcOffset % 60), 0, 0)
+      if (sh < 12) startDate.setUTCDate(startDate.getUTCDate() + 1)
+      const endDate = new Date(baseDate)
+      endDate.setUTCHours(eh + Math.round(utcOffset / 60), em + (utcOffset % 60), 0, 0)
+      if (eh < 12) endDate.setUTCDate(endDate.getUTCDate() + 1)
+      // If end <= start, push end to next day
+      if (endDate <= startDate) endDate.setUTCDate(endDate.getUTCDate() + 1)
+      const durationMin = Math.round((endDate - startDate) / 60000)
+      imagingWindow = { start: startDate, end: endDate, duration_minutes: durationMin }
+    }
 
     // Determine camera type from imaging train
     let cameraType = 'Mono'
